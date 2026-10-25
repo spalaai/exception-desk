@@ -1,3 +1,9 @@
+const REASON_LABELS = {
+  same_customer_amount: 'same email and amount',
+  same_invoice: 'same invoice',
+  refund_after_failed: 'refund vs failed payment in batch',
+};
+
 /**
  * Deterministic related-item detection across a triaged batch.
  * @param {Array<{ id: string, rawText: string, category: string }>} items
@@ -87,16 +93,26 @@ export function attachRelatedItems(items) {
   return items.map((item) => {
     const rel = relatedPairs.get(item.id);
     const relatedIds = rel ? [...new Set(rel.ids)] : [];
+    const relatedLinks = rel
+      ? rel.links.map((l) => ({
+          id: l.id,
+          reason: l.reason,
+          label: REASON_LABELS[l.reason] || l.reason,
+        }))
+      : [];
     const relatedReasons = rel ? rel.reasons : [];
-    return { ...item, relatedIds, relatedReasons };
+    return { ...item, relatedIds, relatedLinks, relatedReasons };
   });
 }
 
 function addRel(map, from, to, reason) {
-  if (!map.has(from)) map.set(from, { ids: [], reasons: [] });
+  if (!map.has(from)) map.set(from, { ids: [], reasons: [], links: [] });
   const entry = map.get(from);
   if (!entry.ids.includes(to)) entry.ids.push(to);
   if (!entry.reasons.includes(reason)) entry.reasons.push(reason);
+  if (!entry.links.some((l) => l.id === to && l.reason === reason)) {
+    entry.links.push({ id: to, reason });
+  }
 }
 
 function extractAmounts(text) {
@@ -109,3 +125,5 @@ function extractAmounts(text) {
   }
   return amounts;
 }
+
+export { REASON_LABELS };
