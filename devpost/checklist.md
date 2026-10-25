@@ -128,6 +128,9 @@ Build mode: fast
 - [x] AI_PROVIDER alias and LLM prompt includes related context
 - [x] Extraction, money format, draft wording, em-dash cleanup, LLM concurrency/source/guardrails
 - [x] CSV/JSON/text triage parity, company team greetings, README links and dash cleanup
+- [x] Persist triage session and input in localStorage across reload; Clear desk with confirm
+- [x] One related link per item with joined reasons in detail panel
+- [x] Plain hyphens in sample batch files (no em/en dashes)
 - [ ] Final review complete — feedback resolved and learner confirms ready to ship — **waiting for Paul**
 
 ## Code Tour and App Map
@@ -149,3 +152,4 @@ Activity mode: reference map only until Paul returns
 - Final review: EX- batch ids, richer queue rows, signal-based confidence, batch-context suggestions (refund/failed payment, duplicate pairs, invoice variance), related links in detail, batch insights bar, evidence highlighting, keyboard shortcuts + favicon, auto-advance after decisions, `AI_PROVIDER` alias and related context in LLM prompts — verified via `npm test` and curl on `samples/batch.txt` / `samples/batch.csv`.
 - Final review (round 2): stricter field extraction (order/invoice/decline, email-based names), en-US money formatting, no em dash in generated copy, duplicate drafts promise future refund not reversal, `LLM_CONCURRENCY`, per-item `source` chips, batch guardrails after LLM with `Batch check:` in Why, mocked Gemini tests — verified via `npm test` and curl demo triage.
 - Final review (round 3): `itemFullText` and `category_hint` for rules/related/batch-context parity across CSV, JSON, and text; invoice delta from bare totals and `vs` pairs; company `Hi … team` greetings; README hackathon/skill-pack links and plain punctuation in README and server comments; `batch.csv`/`batch.txt` parity test — verified via `npm test` and curl on port 3847.
+- Final review (round 4): `exception-desk-session` localStorage restores triage queue, insights, input text, and per-`triageId` decisions after reload; **Clear desk** wipes session + decisions; `mergeRelatedLinks` dedupes detail related links; `samples/batch.txt` uses ASCII hyphens — verified via `npm test` and curl on port 5301.

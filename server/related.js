@@ -116,13 +116,7 @@ export function attachRelatedItems(items) {
   return items.map((item) => {
     const rel = relatedPairs.get(item.id);
     const relatedIds = rel ? [...new Set(rel.ids)] : [];
-    const relatedLinks = rel
-      ? rel.links.map((l) => ({
-          id: l.id,
-          reason: l.reason,
-          label: REASON_LABELS[l.reason] || l.reason,
-        }))
-      : [];
+    const relatedLinks = rel ? mergeRelatedLinks(rel.links) : [];
     const relatedReasons = rel ? rel.reasons : [];
     return { ...item, relatedIds, relatedLinks, relatedReasons };
   });
@@ -136,6 +130,27 @@ function addRel(map, from, to, reason) {
   if (!entry.links.some((l) => l.id === to && l.reason === reason)) {
     entry.links.push({ id: to, reason });
   }
+}
+
+/** One link per related id; multiple detection reasons joined in label. */
+function mergeRelatedLinks(links) {
+  const byId = new Map();
+  for (const l of links) {
+    const label = REASON_LABELS[l.reason] || l.reason;
+    if (!byId.has(l.id)) {
+      byId.set(l.id, { id: l.id, reasons: [], labels: [] });
+    }
+    const entry = byId.get(l.id);
+    if (!entry.reasons.includes(l.reason)) {
+      entry.reasons.push(l.reason);
+      entry.labels.push(label);
+    }
+  }
+  return [...byId.values()].map((e) => ({
+    id: e.id,
+    reason: e.reasons.join(','),
+    label: e.labels.join(', '),
+  }));
 }
 
 export { REASON_LABELS };

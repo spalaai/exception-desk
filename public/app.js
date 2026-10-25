@@ -1,8 +1,9 @@
 const $ = (sel) => document.querySelector(sel);
 
 const STORAGE_KEY = 'exception-desk-decisions';
+const SESSION_KEY = 'exception-desk-session';
 
-/** @type {{ triageId?: string, items: any[], selectedId?: string, insights?: object }} */
+/** @type {{ triageId?: string, items: any[], selectedId?: string, insights?: object, mode?: string, modeLabel?: string }} */
 let state = { items: [] };
 
 /** @type {Record<string, { status: string, finalReply: string, updatedAt: string }>} */
@@ -31,6 +32,71 @@ function saveDecisions() {
   }
 }
 
+function saveSession() {
+  if (!state.triageId || !state.items.length) return;
+  try {
+    const payload = {
+      triageId: state.triageId,
+      items: state.items,
+      insights: state.insights,
+      mode: state.mode,
+      modeLabel: state.modeLabel,
+      inputText: $('#batch-input').value,
+      selectedId: state.selectedId,
+    };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function restoreSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    if (!saved.triageId || !Array.isArray(saved.items) || !saved.items.length) return false;
+    state.triageId = saved.triageId;
+    state.items = saved.items;
+    state.insights = saved.insights;
+    state.mode = saved.mode;
+    state.modeLabel = saved.modeLabel;
+    state.selectedId = saved.selectedId || saved.items[0]?.id;
+    if (typeof saved.inputText === 'string') $('#batch-input').value = saved.inputText;
+    decisions = loadDecisionsForSession(state.triageId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearStoredDesk() {
+  try {
+    const sessionRaw = localStorage.getItem(SESSION_KEY);
+    if (sessionRaw) {
+      const saved = JSON.parse(sessionRaw);
+      if (saved.triageId) {
+        const decRaw = localStorage.getItem(STORAGE_KEY);
+        if (decRaw) {
+          const all = JSON.parse(decRaw);
+          delete all[saved.triageId];
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+        }
+      }
+    }
+    localStorage.removeItem(SESSION_KEY);
+  } catch {
+    localStorage.removeItem(SESSION_KEY);
+  }
+  state = { items: [] };
+  decisions = {};
+  $('#batch-input').value = '';
+  showBanner('');
+  $('#detail-content').classList.add('hidden');
+  $('#detail-empty').classList.remove('hidden');
+  renderQueue();
+}
+
 function getDecision(itemId) {
   return decisions[itemId] || { status: 'pending', finalReply: '' };
 }
@@ -52,6 +118,8 @@ async function loadMode() {
   try {
     const res = await fetch('/api/mode');
     const data = await res.json();
+    state.mode = data.mode;
+    state.modeLabel = data.label;
     el.textContent = data.label || 'Demo mode (rules)';
     el.classList.toggle('ai', data.mode === 'ai');
   } catch {
@@ -252,6 +320,7 @@ function selectItem(id) {
   state.selectedId = id;
   const item = state.items.find((x) => x.id === id);
   if (!item) return;
+  saveSession();
 
   $('#detail-empty').classList.add('hidden');
   const panel = $('#detail-content');
@@ -340,8 +409,17 @@ async function runTriage() {
     state.items = data.items || [];
     state.insights = data.insights;
     state.selectedId = state.items[0]?.id;
-    decisions = {};
+    decisions = loadDecisionsForSession(state.triageId);
     saveDecisions();
+    try {
+      const modeRes = await fetch('/api/mode');
+      const modeData = await modeRes.json();
+      state.mode = modeData.mode;
+      state.modeLabel = modeData.label;
+    } catch {
+      /* keep badge from loadMode */
+    }
+    saveSession();
 
     if (data.message) showBanner(data.message, false);
 
@@ -431,6 +509,11 @@ $('#reset-btn').addEventListener('click', () => {
   }
 });
 $('#export-csv').addEventListener('click', exportCsv);
+$('#clear-desk').addEventListener('click', () => {
+  if (!state.items.length && !$('#batch-input').value.trim()) return;
+  if (!confirm('Clear the stored triage queue and all decisions for this desk?')) return;
+  clearStoredDesk();
+});
 $('#copy-reply').addEventListener('click', async () => {
   const text = $('#detail-draft').value;
   try {
@@ -486,5 +569,15 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-loadMode();
-renderQueue();
+loadMode().then(() => {
+  if (restoreSession()) {
+    renderQueue();
+    if (state.selectedId && state.items.some((i) => i.id === state.selectedId)) {
+      selectItem(state.selectedId);
+    } else if (state.items[0]) {
+      selectItem(state.items[0].id);
+    }
+  } else {
+    renderQueue();
+  }
+});

@@ -15,6 +15,12 @@ const MONEY_CATEGORIES = new Set([
   CATEGORIES.INVOICE,
 ]);
 
+function linkHasReason(link, reason) {
+  if (!link?.reason) return false;
+  if (link.reason === reason) return true;
+  return String(link.reason).split(',').includes(reason);
+}
+
 function batchWhy(why, note) {
   const base = (why || '').trim();
   const prefix = `Batch check: ${note}`;
@@ -48,7 +54,7 @@ export function applyBatchContext(items) {
 
 function applyRefundFailedPair(item, byId, details) {
   const links = item.relatedLinks || [];
-  const failedLink = links.find((l) => l.reason === 'refund_after_failed');
+  const failedLink = links.find((l) => linkHasReason(l, 'refund_after_failed'));
   if (!failedLink) return;
 
   const lower = item.rawText.toLowerCase();

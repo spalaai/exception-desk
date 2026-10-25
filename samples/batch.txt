@@ -1,7 +1,7 @@
-Subject: Card declined — order NW-4412
+Subject: Card declined - order NW-4412
 Customer: Elena Vasquez <elena@brightloom.shop>
 Amount: $47.99
-Gateway: Payment failed — card declined (insufficient funds)
+Gateway: Payment failed - card declined (insufficient funds)
 Notes: Customer asked to retry tomorrow.
 
 ---
@@ -15,12 +15,12 @@ Customer sees two identical charges on their statement.
 
 Subject: Second duplicate report (same customer)
 From: maya@northwind.io
-Double charge same day — another $89.00 capture for Northwind Pro.
+Double charge same day - another $89.00 capture for Northwind Pro.
 Please reverse one of these charges.
 
 ---
 
-Subject: Invoice does not match payment — INV-2048
+Subject: Invoice does not match payment - INV-2048
 Bill to: Harbor Tools LLC
 Invoice total: $1,240.00 but we captured $1,180.00.
 PO reference HT-PO-9912 on invoice line 3 missing from payment memo.
@@ -29,13 +29,13 @@ PO reference HT-PO-9912 on invoice line 3 missing from payment memo.
 
 Subject: Refund for order that never cleared
 Customer: Jen Park <jen@acme.co>
-Hi — please refund $120.00 for order AC-7781. Payment already failed last week but we still got a shipping confirmation email.
+Hi - please refund $120.00 for order AC-7781. Payment already failed last week but we still got a shipping confirmation email.
 
 ---
 
 Subject: Failed capture (related)
 Payment failed for jen@acme.co
-Order AC-7781 amount $120.00 — declined: do not honor
+Order AC-7781 amount $120.00 - declined: do not honor
 No settlement on our side.
 
 ---
@@ -43,28 +43,28 @@ No settlement on our side.
 Subject: Small invoice mismatch
 Invoice INV-3301 vs payment
 Customer: desk@smallbatch.io
-Invoice says $215.50, payment record shows $210.50 — off by $5.
+Invoice says $215.50, payment record shows $210.50 - off by $5.
 
 ---
 
-Subject: Refund request — routine
+Subject: Refund request - routine
 From: returns@leafmarket.com
 Please refund $38.00 for returned item LM-992. Package received yesterday.
 
 ---
 
-Subject: URGENT — chargeback notice
-Card network dispute — Reason code 13.1
+Subject: URGENT - chargeback notice
+Card network dispute - Reason code 13.1
 Merchant ref: LM-CB-2026-44
 Amount: $312.00
 Response due in 5 business days.
 
 ---
 
-Subject: Enterprise renewal — high value failed payment
+Subject: Enterprise renewal - high value failed payment
 Account: VoltEdge Systems
 Amount: $6,200.00 annual renewal
-Status: Failed payment — authentication required on corporate card
+Status: Failed payment - authentication required on corporate card
 
 ---
 
@@ -74,5 +74,5 @@ Subject: Unreadable webhook dump
 ---
 
 Subject: Question about payout timing
-Hi team — when do weekly payouts land? Not sure this is an exception.
+Hi team - when do weekly payouts land? Not sure this is an exception.
 Contact: ops@generic.example
