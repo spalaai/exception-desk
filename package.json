@@ -1,0 +1,14 @@
+{
+  "name": "exception-desk",
+  "version": "1.0.0",
+  "description": "Paste payment exceptions, triage into a human-reviewed queue",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

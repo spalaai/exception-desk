@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Exception Desk</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <h1>Exception Desk</h1>
+      <p class="tagline">Paste the mess, review the queue.</p>
+    </div>
+    <div id="mode-badge" class="mode-badge" aria-live="polite">Loading…</div>
+  </header>
+
+  <p class="disclaimer" role="note">
+    Approved actions are records only. Nothing is sent or refunded.
+  </p>
+
+  <div id="banner" class="banner hidden" role="status"></div>
+
+  <main class="desk-layout">
+    <section class="panel input-panel" aria-labelledby="input-heading">
+      <h2 id="input-heading">Input</h2>
+      <textarea id="batch-input" rows="12" placeholder="Paste exceptions here (CSV, JSON, or plain text blocks separated by blank lines)…"></textarea>
+      <div class="input-actions">
+        <label class="btn secondary file-label">
+          Upload file
+          <input type="file" id="file-upload" accept=".csv,.json,.txt,text/plain" hidden />
+        </label>
+        <button type="button" id="load-sample" class="btn secondary">Load sample batch</button>
+        <button type="button" id="triage-btn" class="btn primary">Triage</button>
+      </div>
+    </section>
+
+    <section class="panel queue-panel" aria-labelledby="queue-heading">
+      <div class="queue-header">
+        <h2 id="queue-heading">Queue</h2>
+        <div class="filters">
+          <label>
+            Category
+            <select id="filter-category">
+              <option value="">All</option>
+              <option value="failed payment">Failed payment</option>
+              <option value="invoice mismatch">Invoice mismatch</option>
+              <option value="refund request">Refund request</option>
+              <option value="dispute / chargeback">Dispute / chargeback</option>
+              <option value="duplicate charge">Duplicate charge</option>
+              <option value="other / needs human">Other / needs human</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select id="filter-status">
+              <option value="">All</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div id="summary-bar" class="summary-bar" hidden>
+        <span data-summary="total">0 total</span>
+        <span data-summary="p1" class="p1">0 P1</span>
+        <span data-summary="approved">0 approved</span>
+        <span data-summary="rejected">0 rejected</span>
+        <span data-summary="pending">0 pending</span>
+      </div>
+      <ul id="queue-list" class="queue-list" aria-label="Triage queue"></ul>
+      <p id="queue-empty" class="empty-hint">Run triage to populate the queue.</p>
+      <div class="export-row">
+        <button type="button" id="export-csv" class="btn secondary" disabled>Export CSV</button>
+      </div>
+    </section>
+
+    <section class="panel detail-panel" aria-labelledby="detail-heading">
+      <h2 id="detail-heading">Detail</h2>
+      <div id="detail-empty" class="empty-hint">Select an item to review.</div>
+      <div id="detail-content" class="detail-content hidden">
+        <div class="detail-meta">
+          <span id="detail-category" class="chip category"></span>
+          <span id="detail-priority" class="chip priority"></span>
+          <span id="detail-confidence" class="meta-text"></span>
+          <span id="detail-fallback" class="fallback-label hidden"></span>
+        </div>
+        <p class="meta-text"><strong>Suggested action:</strong> <span id="detail-action"></span></p>
+        <p class="meta-text why"><strong>Why:</strong> <span id="detail-why"></span></p>
+        <div class="raw-block">
+          <h3>Source text</h3>
+          <pre id="detail-raw" class="raw-text"></pre>
+        </div>
+        <label class="draft-label" for="detail-draft">Draft reply</label>
+        <div class="draft-row">
+          <textarea id="detail-draft" rows="6"></textarea>
+          <button type="button" id="copy-reply" class="btn secondary">Copy reply</button>
+        </div>
+        <div class="decision-actions">
+          <button type="button" id="approve-btn" class="btn primary">Approve</button>
+          <button type="button" id="reject-btn" class="btn danger">Reject</button>
+          <button type="button" id="reset-btn" class="btn secondary">Reset</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

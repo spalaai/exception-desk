@@ -111,8 +111,8 @@ exception-desk/
 
 ## External Services and Dependencies
 - **OpenAI Chat Completions** (optional): `POST https://api.openai.com/v1/chat/completions` — key `OPENAI_API_KEY`; model from `OPENAI_MODEL` default `gpt-4o-mini` (verify at build time).
-- **Google Gemini** (optional): Generative Language API — key `GEMINI_API_KEY`; model from `GEMINI_MODEL` default `gemini-2.0-flash` (verify at build time).
-- If both keys set: prefer OpenAI first (document in README); Paul can change via env flag `LLM_PROVIDER=openai|gemini` if added—**open issue** below.
+- **Google Gemini** (optional): Generative Language API — key `GEMINI_API_KEY`; model from `GEMINI_MODEL` default `gemini-3.8-flash`.
+- If both keys set: use `LLM_PROVIDER=openai|gemini`; if unset, use whichever key exists (OpenAI first when both present).
 
 No npm LLM SDK required unless build finds raw `fetch` awkward on Node 20 (native `fetch` is available).
 
@@ -137,7 +137,9 @@ No npm LLM SDK required unless build finds raw `fetch` awkward on Node 20 (nativ
 
 **Learner uncertainty (plan-first practice):** how tightly to couple build steps to spec headings—**clarified:** `5-build` checklist will cite spec component headings and PRD behaviors; no extra tooling required.
 
-**Open issues:**
-- If both `OPENAI_API_KEY` and `GEMINI_API_KEY` are set, default provider is OpenAI unless `LLM_PROVIDER` is added—confirm preference.
-- Exact P1 amount threshold for rules engine (e.g. ≥ $500) not specified—pick a constant in rules and document in README.
-- Whether "copy reply" is a separate button or select-all on draft field—implement one obvious control in build.
+**Resolved at build:**
+- `LLM_PROVIDER=openai|gemini`; if unset, whichever key exists (OpenAI first if both). Defaults: `OPENAI_MODEL=gpt-4o-mini`, `GEMINI_MODEL=gemini-3.8-flash`. LLM via native `fetch`, 15s timeout, per-item rules fallback.
+- P1 amount threshold: **$500 or more**; all disputes/chargebacks and duplicate charges are P1 regardless of amount.
+- **Copy reply** button beside the draft field in the detail panel.
+
+**Open issues:** none blocking build.
