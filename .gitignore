@@ -1,0 +1,10 @@
+# Personal learning context (Devpost Learn)
+devpost/learner-profile.md
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
