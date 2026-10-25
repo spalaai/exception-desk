@@ -5,7 +5,7 @@ const TIMEOUT_MS = 15_000;
 
 /**
  * LLM triage for one item when AI mode is on (rules baseline + related context in prompt).
- * @param {object} item — rules-triaged item with relatedLinks
+ * @param {object} item rules-triaged item with relatedLinks
  * @param {string} relatedSummary
  */
 export async function triageItemWithContext(item, relatedSummary) {
@@ -100,7 +100,7 @@ why (one sentence; mention matched signals),
 evidenceLines (array of 0-based line indices from the source text that support your answer; include amount lines, decline reasons, reason codes, invoice totals).
 ${relatedBlock}
 Source:
-${item.rawText}`;
+${item.rawText}${item.fields ? `\nStructured fields:\n${JSON.stringify(item.fields)}` : ''}`;
 }
 
 async function fetchWithTimeout(url, options) {

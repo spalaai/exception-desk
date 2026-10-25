@@ -4,6 +4,8 @@ import {
   enrichDetailsFromBatch,
   buildEmailNameMap,
   formatAmount,
+  greetingSalutation,
+  actionCustomerLabel,
 } from './extract.js';
 
 const MONEY_CATEGORIES = new Set([
@@ -18,14 +20,6 @@ function batchWhy(why, note) {
   const prefix = `Batch check: ${note}`;
   if (base.includes('Batch check:')) return base;
   return base ? `${prefix} ${base}` : prefix;
-}
-
-function draftHi(firstName) {
-  return firstName ? `Hi ${firstName}` : 'Hi there';
-}
-
-function actionCustomer(firstName) {
-  return firstName ? firstName : 'the customer';
 }
 
 /**
@@ -64,7 +58,7 @@ function applyRefundFailedPair(item, byId, details) {
   const failed = byId.get(failedLink.id);
   const order = details.orderId || (failed ? enrichDetailsFromBatch(extractDetails(failed), new Map()).orderId : '');
   const amt = formatAmount(details.primaryAmount) || 'the listed amount';
-  const hi = draftHi(details.firstName);
+  const hi = greetingSalutation(details);
 
   item.category = CATEGORIES.REFUND;
   item.suggestedAction = 'No refund needed: payment never captured';
@@ -114,7 +108,7 @@ function applyDuplicatePair(item, groups, byId, details) {
   const primaryId = group[0];
   const isPrimary = item.id === primaryId;
   const amt = formatAmount(details.primaryAmount);
-  const hi = draftHi(details.firstName);
+  const hi = greetingSalutation(details);
 
   if (isPrimary) {
     item.suggestedAction = `Refund one ${amt || ''} capture; void the duplicate after ledger check`.trim();
@@ -135,7 +129,7 @@ function applyInvoiceMismatch(item, details) {
   if (item.category !== CATEGORIES.INVOICE) return;
   const delta = details.invoiceDelta;
   const inv = details.invoiceId;
-  const hi = draftHi(details.firstName);
+  const hi = greetingSalutation(details);
   if (delta !== null && Math.abs(delta) >= 0.01) {
     const short = delta > 0;
     const diff = formatAmount(Math.abs(delta));
@@ -163,8 +157,8 @@ function personalizeGeneric(item, details) {
   ];
   if (skip.some((p) => String(item.suggestedAction).includes(p))) return;
 
-  const customer = actionCustomer(details.firstName);
-  const hi = draftHi(details.firstName);
+  const customer = actionCustomerLabel(details);
+  const hi = greetingSalutation(details);
   const amt = formatAmount(details.primaryAmount);
   const order = details.orderId;
   const inv = details.invoiceId;

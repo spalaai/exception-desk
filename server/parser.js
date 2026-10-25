@@ -11,7 +11,7 @@ export function getMaxItems() {
 }
 
 /**
- * Parse batch input into normalized items. Never drops content — worst case one blob item.
+ * Parse batch input into normalized items. Never drops content; worst case one blob item.
  * @param {string} input
  * @param {{ format?: string }} [opts]
  * @returns {{ items: ParsedItem[], truncated: boolean, message?: string }}

@@ -1,4 +1,10 @@
-import { extractDetails, extractAmounts, formatAmount } from './extract.js';
+import {
+  extractDetails,
+  extractAmounts,
+  formatAmount,
+  itemFullText,
+  greetingSalutation,
+} from './extract.js';
 
 const P1_AMOUNT = 500;
 
@@ -15,9 +21,9 @@ const CATEGORIES = {
  * @param {{ id: string, rawText: string, fields?: Record<string, string>, parseWarning?: string }} item
  */
 export function triageWithRules(item) {
-  const text = item.rawText;
+  const text = itemFullText(item);
   const lower = text.toLowerCase();
-  const lines = text.split(/\r?\n/);
+  const lines = item.rawText.split(/\r?\n/);
   const evidenceLines = [];
   const details = extractDetails(item);
   const amounts = details.amounts.length ? details.amounts : extractAmounts(text);
@@ -85,6 +91,15 @@ export function triageWithRules(item) {
     priority = maxAmount >= P1_AMOUNT ? 'P1' : 'P2';
   }
 
+  const hintCategory = categoryFromHint(item.fields);
+  if (category === CATEGORIES.OTHER && hintCategory && hintCategory !== CATEGORIES.OTHER) {
+    category = hintCategory;
+    addSignal(signals, `category_hint ${item.fields?.category_hint || item.fields?.category}`, 0.2, lines, evidenceLines, /.*/);
+    ({ suggestedAction, why, priority } = defaultsForCategory(category, maxAmount, lower));
+    if (category === CATEGORIES.DUPLICATE) priority = 'P1';
+    if (category === CATEGORIES.DISPUTE) priority = 'P1';
+  }
+
   if (category === CATEGORIES.OTHER) {
     addSignal(signals, 'weak context', 0.08, lines, evidenceLines, /.*/);
     if (evidenceLines.length === 0) evidenceLines.push(0);
@@ -149,7 +164,70 @@ function matchesFailed(lower) {
 }
 
 function matchesInvoice(lower) {
-  return /invoice/.test(lower) && /mismatch|doesn't match|does not match|wrong|discrepancy|off by/.test(lower);
+  if (
+    /invoice/.test(lower) &&
+    /mismatch|doesn't match|does not match|wrong|discrepancy|off by|captured|vs\.?|versus|payment record/.test(
+      lower
+    )
+  ) {
+    return true;
+  }
+  return /\binv-\d+/.test(lower) && /mismatch|captured|vs\.?|versus|total/.test(lower);
+}
+
+function categoryFromHint(fields) {
+  const hint = String(fields?.category_hint || fields?.category || '').trim().toLowerCase();
+  const map = {
+    failed: CATEGORIES.FAILED,
+    duplicate: CATEGORIES.DUPLICATE,
+    invoice: CATEGORIES.INVOICE,
+    refund: CATEGORIES.REFUND,
+    dispute: CATEGORIES.DISPUTE,
+    chargeback: CATEGORIES.DISPUTE,
+    other: CATEGORIES.OTHER,
+  };
+  return map[hint] || null;
+}
+
+function defaultsForCategory(category, maxAmount, lower) {
+  switch (category) {
+    case CATEGORIES.DUPLICATE:
+      return {
+        suggestedAction: 'Verify ledger for duplicate capture; void or refund duplicate if confirmed',
+        why: 'Structured batch marks this as a duplicate charge.',
+        priority: 'P1',
+      };
+    case CATEGORIES.DISPUTE:
+      return {
+        suggestedAction: 'Gather evidence and respond before network deadline',
+        why: 'Structured batch marks this as a dispute or chargeback.',
+        priority: 'P1',
+      };
+    case CATEGORIES.REFUND:
+      return {
+        suggestedAction: 'Confirm original payment status; approve refund if eligible',
+        why: 'Structured batch marks this as a refund request.',
+        priority: maxAmount >= P1_AMOUNT ? 'P1' : 'P2',
+      };
+    case CATEGORIES.INVOICE:
+      return {
+        suggestedAction: 'Reconcile invoice line items against payment record',
+        why: 'Structured batch marks this as an invoice mismatch.',
+        priority: maxAmount >= P1_AMOUNT ? 'P1' : 'P2',
+      };
+    case CATEGORIES.FAILED:
+      return {
+        suggestedAction: 'Ask customer to update payment method or retry',
+        why: 'Structured batch marks this as a failed payment.',
+        priority: maxAmount >= P1_AMOUNT ? 'P1' : 'P2',
+      };
+    default:
+      return {
+        suggestedAction: 'Review manually and assign owner',
+        why: 'Structured batch could not classify further.',
+        priority: 'P3',
+      };
+  }
 }
 
 function matchesRefund(lower) {
@@ -176,7 +254,7 @@ function uniqueSorted(arr) {
 
 function buildDraft(category, details, amount) {
   const amt = amount > 0 ? ` for ${formatAmount(amount)}` : '';
-  const hi = details.firstName ? `Hi ${details.firstName}` : 'Hi there';
+  const hi = greetingSalutation(details);
   switch (category) {
     case CATEGORIES.FAILED:
       return `${hi}, we see the payment${amt} did not go through. Please update your card or try again; we have not charged you. Reply if you need a different payment link.`;

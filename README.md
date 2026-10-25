@@ -61,13 +61,14 @@ devpost/         Planning docs and app map (hackathon)
 
 ## Built with
 
-- [Build With AI: Basics](https://devpost.com/) — Devpost Learn skill pack (planning under `.agents/`)
-- [Cursor](https://cursor.com/) — plan-first agentic build
+- [Build With AI: Basics](https://github.com/challengepost/learn-ai-basics) Devpost Learn skill pack (planning under `.agents/`)
+- [Learn AI Basics hackathon](https://learn-ai-basics.devpost.com/)
+- [Cursor](https://cursor.com/) plan-first agentic build
 
 ## Pre-existing code
 
-**None.** Application code in this repository was written fresh for this project on **2026-10-26**. Third-party material is limited to the Devpost Learn skill pack files under `.agents/` (and mirrored `.claude/` / `agent/` paths), which are planning templates—not part of the runtime app.
+**None.** Application code in this repository was written fresh for this project on **2026-10-26**. Third-party material is limited to the Devpost Learn skill pack files under `.agents/` (and mirrored `.claude/` / `agent/` paths), which are planning templates, not part of the runtime app.
 
 ## License
 
-MIT — Copyright (c) 2026 Pavlo Bogosta. See [LICENSE](LICENSE).
+MIT Copyright (c) 2026 Pavlo Bogosta. See [LICENSE](LICENSE).

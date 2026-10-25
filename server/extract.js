@@ -1,9 +1,29 @@
+/** Combined text for parsing and keyword rules (CSV/JSON fields + raw row). */
+export function itemFullText(item) {
+  const f = item.fields || {};
+  return [
+    item.rawText,
+    f.notes,
+    f.customer,
+    f.email,
+    f.amount,
+    f.category_hint,
+    f.category,
+    f.subject,
+  ]
+    .filter((p) => p != null && String(p).trim())
+    .join('\n');
+}
+
+const COMPANY_MARKERS =
+  /\b(LLC|L\.L\.C\.|Inc\.?|Incorporated|Ltd\.?|Limited|Corp\.?|Corporation|Co\.|Company|PLC|GmbH|Systems|Tools|Market|Group|Holdings)\b/i;
+
 /**
  * Deterministic field extraction from raw exception text (and CSV fields).
  * @param {{ rawText: string, fields?: Record<string, string> }} item
  */
 export function extractDetails(item) {
-  const text = item.rawText;
+  const text = itemFullText(item);
   const fields = item.fields || {};
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 
@@ -37,7 +57,9 @@ export function extractDetails(item) {
     customerName = customerName.replace(new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), '').trim();
   }
   customerName = customerName.replace(/<[^>]+>/g, '').trim();
-  const firstName = customerName.split(/\s+/)[0] || '';
+  const company = isLikelyCompany(customerName);
+  const teamLabel = company ? companyTeamLabel(customerName) : '';
+  const firstName = company ? '' : personFirstName(customerName);
 
   let amounts = extractAmounts(text);
   const fieldAmount = fields.amount ? parseMoney(fields.amount) : null;
@@ -59,18 +81,40 @@ export function extractDetails(item) {
     const pay = parseMoney(invPay[2]);
     if (inv !== null && pay !== null) invoiceDelta = inv - pay;
   }
+  const totalCaptured = text.match(
+    /\btotal\s+([\d,]+(?:\.\d{2})?).{0,50}?\bcaptured\s+([\d,]+(?:\.\d{2})?)/i
+  );
+  if (totalCaptured && invoiceDelta === null) {
+    const inv = parseMoney(totalCaptured[1]);
+    const pay = parseMoney(totalCaptured[2]);
+    if (inv !== null && pay !== null) invoiceDelta = inv - pay;
+  }
+  const vsPair = text.match(/([\d,]+(?:\.\d{2})?)\s+vs\.?\s+([\d,]+(?:\.\d{2})?)/i);
+  if (vsPair && invoiceDelta === null) {
+    const a = parseMoney(vsPair[1]);
+    const b = parseMoney(vsPair[2]);
+    if (a !== null && b !== null) invoiceDelta = a - b;
+  }
   const offBy = text.match(/off by\s*\$?\s*([\d,]+(?:\.\d{2})?)/i);
   if (offBy && invoiceDelta === null) {
     invoiceDelta = parseMoney(offBy[1]);
   }
   const poMissing = text.match(/(PO\s+reference\s+[^\n]+missing[^\n]*)/i);
   if (poMissing) missingReference = poMissing[1].trim();
+  else {
+    const poToken = text.match(/\b(HT-PO-\d+|PO[-\s]?[A-Z0-9-]+)\b/i);
+    if (poToken && invoiceDelta !== null && invoiceDelta > 0) {
+      missingReference = `PO reference ${poToken[1]} not on payment memo`;
+    }
+  }
 
   return {
     subject,
     email,
     customerName,
     firstName,
+    teamLabel,
+    isCompany: company,
     amounts,
     primaryAmount,
     orderId,
@@ -87,7 +131,7 @@ export function buildEmailNameMap(items) {
   const map = new Map();
   for (const item of items) {
     const d = extractDetails(item);
-    if (d.email && d.firstName) map.set(d.email.toLowerCase(), d);
+    if (d.email && d.firstName && !d.isCompany) map.set(d.email.toLowerCase(), d);
   }
   return map;
 }
@@ -184,6 +228,54 @@ export function extractAmounts(text) {
     if (!Number.isNaN(n)) amounts.push(n);
   }
   return amounts;
+}
+
+export function isLikelyCompany(name) {
+  const s = String(name || '').trim();
+  if (!s) return false;
+  if (COMPANY_MARKERS.test(s)) return true;
+  if (/\d/.test(s)) return true;
+  const words = s.split(/\s+/).filter(Boolean);
+  if (words.length === 1 && /^[A-Z][a-z]*[A-Z]/.test(words[0])) return true;
+  if (words.length >= 2 && words.every((w) => /^[A-Z]/.test(w) || COMPANY_MARKERS.test(w))) {
+    return !looksLikePersonName(s);
+  }
+  return false;
+}
+
+function looksLikePersonName(name) {
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 4) return false;
+  if (COMPANY_MARKERS.test(name)) return false;
+  return words.every((w) => /^[A-Z][a-z'-]+$/.test(w));
+}
+
+function personFirstName(customerName) {
+  const s = String(customerName || '').trim();
+  if (!s || isLikelyCompany(s)) return '';
+  return s.split(/\s+/)[0] || '';
+}
+
+function companyTeamLabel(customerName) {
+  let s = String(customerName || '').trim();
+  s = s.replace(
+    /\s*,?\s*\b(LLC|L\.L\.C\.|Inc\.?|Incorporated|Ltd\.?|Limited|Corp\.?|Corporation|Co\.|Company|PLC|GmbH)\s*\.?\s*$/i,
+    ''
+  );
+  return s.trim() || String(customerName).trim();
+}
+
+/** Salutation for draft replies (no trailing comma). */
+export function greetingSalutation(details) {
+  if (details.teamLabel) return `Hi ${details.teamLabel} team`;
+  if (details.firstName) return `Hi ${details.firstName}`;
+  return 'Hi there';
+}
+
+/** Name fragment for suggested actions ("Ask Jen …" / "Ask the customer …"). */
+export function actionCustomerLabel(details) {
+  if (details.firstName) return details.firstName;
+  return 'the customer';
 }
 
 export function formatAmount(n) {

@@ -73,6 +73,69 @@ describe('final review refinements', () => {
     assert.equal(formatAmount(insights.moneyTotal).includes(','), true);
   });
 
+  it('batch.csv and batch.txt triage with matching categories and key actions', async () => {
+    const txt = await fs.readFile(path.join(__dirname, '..', 'samples', 'batch.txt'), 'utf8');
+    const csv = await fs.readFile(path.join(__dirname, '..', 'samples', 'batch.csv'), 'utf8');
+    const fromTxt = await runTriage({ text: txt });
+    const fromCsv = await runTriage({ text: csv });
+
+    const pairs = [
+      ['EX-02', 'EX-03'],
+      ['EX-05', 'EX-06'],
+      ['EX-04'],
+      ['EX-07'],
+    ];
+
+    for (const ids of pairs) {
+      for (const id of ids) {
+        const t = fromTxt.items.find((i) => i.id === id);
+        const c = fromCsv.items.find((i) => i.id === id);
+        assert.ok(t && c, `missing ${id}`);
+        assert.equal(c.category, t.category, `${id} category`);
+      }
+    }
+
+    const dupPrimaryTxt = fromTxt.items.find((i) => i.id === 'EX-02');
+    const dupSecondaryTxt = fromTxt.items.find((i) => i.id === 'EX-03');
+    const dupPrimaryCsv = fromCsv.items.find((i) => i.id === 'EX-02');
+    const dupSecondaryCsv = fromCsv.items.find((i) => i.id === 'EX-03');
+    assert.ok(dupPrimaryTxt.suggestedAction.includes('Refund one'));
+    assert.ok(dupSecondaryTxt.suggestedAction.includes('Same case as EX-02'));
+    assert.ok(dupPrimaryCsv.suggestedAction.includes('Refund one'));
+    assert.ok(dupSecondaryCsv.suggestedAction.includes('Same case as EX-02'));
+
+    const refundTxt = fromTxt.items.find((i) => i.id === 'EX-05');
+    const refundCsv = fromCsv.items.find((i) => i.id === 'EX-05');
+    assert.ok(refundTxt.suggestedAction.includes('No refund needed'));
+    assert.ok(refundCsv.suggestedAction.includes('No refund needed'));
+
+    const invTxt = fromTxt.items.find((i) => i.id === 'EX-04');
+    const invCsv = fromCsv.items.find((i) => i.id === 'EX-04');
+    assert.equal(invCsv.category, CATEGORIES.INVOICE);
+    assert.ok(invCsv.suggestedAction.includes('$60.00'));
+    assert.ok(invCsv.suggestedAction.includes('short'));
+    assert.ok(invTxt.suggestedAction.includes('$60.00'));
+    assert.ok(
+      invCsv.suggestedAction.includes('INV-2048') ||
+        invCsv.draftReply.includes('INV-2048') ||
+        invCsv.why.includes('INV-2048')
+    );
+
+    const smallCsv = fromCsv.items.find((i) => i.id === 'EX-07');
+    const smallTxt = fromTxt.items.find((i) => i.id === 'EX-07');
+    assert.ok(smallCsv.suggestedAction.includes('$5.00'));
+    assert.ok(smallTxt.suggestedAction.includes('$5.00'));
+    assert.ok(smallCsv.suggestedAction.includes('INV-3301') || smallCsv.draftReply.includes('INV-3301'));
+  });
+
+  it('company customers get team greeting in drafts', async () => {
+    const csv = await fs.readFile(path.join(__dirname, '..', 'samples', 'batch.csv'), 'utf8');
+    const { items } = await runTriage({ text: csv });
+    const harbor = items.find((i) => i.id === 'EX-04');
+    assert.ok(harbor.draftReply.startsWith('Hi Harbor Tools team,'));
+    assert.ok(!harbor.draftReply.startsWith('Hi Harbor,'));
+  });
+
   it('invoice mismatch states difference amount', () => {
     const triaged = [
       triageWithRules({

@@ -1,3 +1,5 @@
+import { extractDetails, extractAmounts } from './extract.js';
+
 const REASON_LABELS = {
   same_customer_amount: 'same email and amount',
   same_invoice: 'same invoice',
@@ -20,8 +22,14 @@ export function attachRelatedItems(items) {
   for (const item of items) {
     const text = item.rawText;
     const lower = text.toLowerCase();
-    const emails = [...new Set((text.match(emailRe) || []).map((e) => e.toLowerCase()))];
-    const amounts = extractAmounts(text);
+    const details = extractDetails(item);
+    const emails = [
+      ...new Set([
+        ...(details.email ? [details.email.toLowerCase()] : []),
+        ...(text.match(emailRe) || []).map((e) => e.toLowerCase()),
+      ]),
+    ];
+    const amounts = details.amounts.length ? details.amounts : extractAmounts(text);
 
     for (const email of emails) {
       for (const amt of amounts) {
@@ -31,11 +39,18 @@ export function attachRelatedItems(items) {
       }
     }
 
+    const invoiceIds = new Set();
+    if (details.invoiceId) invoiceIds.add(details.invoiceId.toUpperCase());
     let invMatch;
     const invCopy = text;
     invoiceRe.lastIndex = 0;
     while ((invMatch = invoiceRe.exec(invCopy)) !== null) {
-      const inv = invMatch[1].toUpperCase();
+      invoiceIds.add(invMatch[1].toUpperCase());
+    }
+    const notes = item.fields?.notes || '';
+    const invToken = notes.match(/\b(INV-\d+)\b/i);
+    if (invToken) invoiceIds.add(invToken[1].toUpperCase());
+    for (const inv of invoiceIds) {
       if (!byInvoice.has(inv)) byInvoice.set(inv, []);
       byInvoice.get(inv).push(item.id);
     }
@@ -77,12 +92,20 @@ export function attachRelatedItems(items) {
   }
 
   for (const refund of refundRequests) {
-    const emails = (refund.rawText.match(emailRe) || []).map((e) => e.toLowerCase());
-    const amounts = extractAmounts(refund.rawText);
+    const rDetails = extractDetails(refund);
+    const emails = [
+      ...(rDetails.email ? [rDetails.email.toLowerCase()] : []),
+      ...(refund.rawText.match(emailRe) || []).map((e) => e.toLowerCase()),
+    ];
+    const amounts = rDetails.amounts.length ? rDetails.amounts : extractAmounts(refund.rawText);
     for (const failed of failedPayments) {
-      const fEmails = (failed.rawText.match(emailRe) || []).map((e) => e.toLowerCase());
+      const fDetails = extractDetails(failed);
+      const fEmails = [
+        ...(fDetails.email ? [fDetails.email.toLowerCase()] : []),
+        ...(failed.rawText.match(emailRe) || []).map((e) => e.toLowerCase()),
+      ];
       const sharedEmail = emails.some((e) => fEmails.includes(e));
-      const fAmounts = extractAmounts(failed.rawText);
+      const fAmounts = fDetails.amounts.length ? fDetails.amounts : extractAmounts(failed.rawText);
       const sharedAmount = amounts.some((a) => fAmounts.some((b) => Math.abs(a - b) < 0.01));
       if (sharedEmail && (sharedAmount || /already failed|payment failed/.test(refund.rawText.toLowerCase()))) {
         link(refund.id, failed.id, 'refund_after_failed');
@@ -113,17 +136,6 @@ function addRel(map, from, to, reason) {
   if (!entry.links.some((l) => l.id === to && l.reason === reason)) {
     entry.links.push({ id: to, reason });
   }
-}
-
-function extractAmounts(text) {
-  const amounts = [];
-  const re = /\$\s*([\d,]+(?:\.\d{2})?)/g;
-  let m;
-  while ((m = re.exec(text)) !== null) {
-    const n = parseFloat(m[1].replace(/,/g, ''));
-    if (!Number.isNaN(n)) amounts.push(n);
-  }
-  return amounts;
 }
 
 export { REASON_LABELS };
