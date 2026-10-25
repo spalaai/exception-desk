@@ -3,10 +3,32 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { getModeInfo } from './mode.js';
+import { runTriage } from './triage-run.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const PORT = Number(process.env.PORT) || 5173;
+
+async function loadEnvFile() {
+  try {
+    const envPath = path.join(__dirname, '..', '.env');
+    const content = await fs.readFile(envPath, 'utf8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq === -1) continue;
+      const key = trimmed.slice(0, eq).trim();
+      let val = trimmed.slice(eq + 1).trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (!(key in process.env)) process.env[key] = val;
+    }
+  } catch {
+    /* no .env */
+  }
+}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -106,10 +128,11 @@ export function createApp(handlers = {}) {
   };
 }
 
-const app = createApp();
+const app = createApp({ onTriage: runTriage });
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (isMain) {
+  await loadEnvFile();
   const server = http.createServer((req, res) => app(req, res));
   server.listen(PORT, () => {
     console.log(`Exception Desk at http://localhost:${PORT}`);
