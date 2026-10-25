@@ -27,6 +27,37 @@ function buildRelatedSummary(item, allItems) {
     .join('; ');
 }
 
+function llmConcurrencyLimit() {
+  const raw = process.env.LLM_CONCURRENCY?.trim();
+  const n = raw ? parseInt(raw, 10) : 4;
+  if (!Number.isFinite(n) || n < 1) return 4;
+  return Math.min(n, 32);
+}
+
+/**
+ * Run async mapper with a concurrency cap; results stay in input order.
+ * @template T, R
+ * @param {T[]} items
+ * @param {number} limit
+ * @param {(item: T, index: number) => Promise<R>} fn
+ * @returns {Promise<R[]>}
+ */
+export async function mapWithConcurrency(items, limit, fn) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const i = nextIndex++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
 /**
  * @param {{ text?: string, format?: string }} body
  */
@@ -54,12 +85,12 @@ export async function runTriage(body) {
   triaged = attachRelatedItems(triaged);
 
   if (mode.mode === 'ai') {
-    const enriched = [];
-    for (const item of triaged) {
-      const relatedSummary = buildRelatedSummary(item, triaged);
-      enriched.push(await triageItemWithContext(item, relatedSummary));
-    }
-    triaged = enriched;
+    const limit = llmConcurrencyLimit();
+    const rulesPass = triaged;
+    triaged = await mapWithConcurrency(rulesPass, limit, async (item) => {
+      const relatedSummary = buildRelatedSummary(item, rulesPass);
+      return triageItemWithContext(item, relatedSummary);
+    });
     triaged = attachRelatedItems(triaged);
   }
 

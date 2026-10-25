@@ -1,6 +1,6 @@
 # Exception Desk
 
-**Paste the mess, review the queue.** Ops and finance teams paste or upload a batch of payment exceptions; the server triages each item into category, priority, suggested action, draft reply, and evidence lines. You review, approve, edit, or reject—nothing moves money automatically.
+**Paste the mess, review the queue.** Ops and finance teams paste or upload a batch of payment exceptions; the server triages each item into category, priority, suggested action, draft reply, and evidence lines. You review, approve, edit, or reject; nothing moves money automatically.
 
 ## Quick start
 
@@ -22,7 +22,7 @@ Click **Load sample batch**, then **Triage**, to see ~12 invented exceptions sor
 - `LLM_PROVIDER` or `AI_PROVIDER`: `openai`, `gemini`, or `rules` (forces demo even if keys exist).
 - If unset, uses whichever key exists (**OpenAI first** when both are set).
 - `OPENAI_MODEL` default `gpt-4o-mini`; `GEMINI_MODEL` default `gemini-3.8-flash`.
-- LLM calls use native `fetch` with a **15s timeout**; any failure falls back to **rules per item** (labeled in the UI).
+- LLM calls use native `fetch` with a **15s timeout** and **`LLM_CONCURRENCY`** (default 4); any failure falls back to **rules per item** (labeled **Rules fallback** in the UI).
 - In AI mode, each item’s prompt includes **deterministic related-item context** from the same batch linker used in demo mode.
 
 Copy `.env.example` to `.env` for local AI trials (never commit `.env`).

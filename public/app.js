@@ -64,8 +64,20 @@ function priorityClass(p) {
 }
 
 function formatMoney(n) {
-  if (!n || n <= 0) return '';
-  return `$${Number(n).toFixed(2)}`;
+  if (n === null || n === undefined || Number(n) <= 0) return '';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(n));
+}
+
+function sourceLabel(source) {
+  if (source === 'ai') return 'AI';
+  if (source === 'rules-fallback') return 'Rules fallback';
+  if (source === 'rules') return 'Rules';
+  return '';
 }
 
 function filteredItems() {
@@ -91,8 +103,8 @@ function updateBatchInsights() {
     return;
   }
   const { relatedGroups, p1, moneyTotal } = state.insights;
-  const money = formatMoney(moneyTotal);
-  el.textContent = `Batch insights: ${relatedGroups} related group${relatedGroups === 1 ? '' : 's'} · ${p1} P1 · ${money || '$0.00'} at stake if money-moving items are approved`;
+  const money = formatMoney(moneyTotal) || '$0.00';
+  el.textContent = `Batch insights: ${relatedGroups} related group${relatedGroups === 1 ? '' : 's'} · ${p1} P1 · ${money} at stake if money-moving items are approved`;
   el.classList.remove('hidden');
 }
 
@@ -169,11 +181,14 @@ function renderQueue() {
       item.relatedIds?.length
         ? `<span class="related-flag" title="Related items in batch">↔ ${item.relatedIds.length} related</span>`
         : '';
+    const src = sourceLabel(item.source);
+    const sourceChip = src ? `<span class="chip source-chip">${escapeHtml(src)}</span>` : '';
 
     li.innerHTML = `
       <div class="queue-item-top">
         <span class="chip ${priorityClass(item.priority)}">${item.priority}</span>
         <span class="chip category">${escapeHtml(item.category)}</span>
+        ${sourceChip}
         ${statusChip}
         ${related}
       </div>
@@ -250,8 +265,9 @@ function selectItem(id) {
   $('#detail-why').textContent = item.why;
 
   const fb = $('#detail-fallback');
-  if (item.fallback === 'rules') {
-    fb.textContent = 'AI unavailable — rules fallback';
+  const src = sourceLabel(item.source);
+  if (src) {
+    fb.textContent = src;
     fb.classList.remove('hidden');
   } else {
     fb.classList.add('hidden');
@@ -354,7 +370,7 @@ function exportCsv() {
       'confidence',
       'why',
       'related_ids',
-      'fallback',
+      'source',
     ],
   ];
   for (const item of state.items) {
@@ -369,7 +385,7 @@ function exportCsv() {
       String(item.confidence ?? ''),
       item.why,
       (item.relatedIds || []).join(';'),
-      item.fallback || '',
+      item.source || '',
     ]);
   }
   const csv = rows
@@ -422,7 +438,7 @@ $('#copy-reply').addEventListener('click', async () => {
     showBanner('Draft copied to clipboard.');
     setTimeout(() => showBanner(''), 2000);
   } catch {
-    showBanner('Could not copy — select the draft and copy manually.', true);
+    showBanner('Could not copy. Select the draft and copy manually.', true);
   }
 });
 

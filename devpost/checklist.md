@@ -126,6 +126,7 @@ Build mode: fast
 - [x] Keyboard shortcuts (j/k, a, r, e) and favicon
 - [x] Approve/reject auto-selects next pending item
 - [x] AI_PROVIDER alias and LLM prompt includes related context
+- [x] Extraction, money format, draft wording, em-dash cleanup, LLM concurrency/source/guardrails
 - [ ] Final review complete — feedback resolved and learner confirms ready to ship — **waiting for Paul**
 
 ## Code Tour and App Map
@@ -145,3 +146,4 @@ Activity mode: reference map only until Paul returns
 - LLM provider selection, P1 $500+ rule, disputes/duplicates always P1, Copy reply button, model defaults (`gpt-4o-mini`, `gemini-3.8-flash`), 15s fetch timeout — resolved at build; recorded in `spec.md > Decisions and Open Issues`.
 - Slices 6–8 UI behaviors landed in commit `Wire input, sample batch, and triage queue UI`; later slice commits mark those checkpoints in git history.
 - Final review: EX- batch ids, richer queue rows, signal-based confidence, batch-context suggestions (refund/failed payment, duplicate pairs, invoice variance), related links in detail, batch insights bar, evidence highlighting, keyboard shortcuts + favicon, auto-advance after decisions, `AI_PROVIDER` alias and related context in LLM prompts — verified via `npm test` and curl on `samples/batch.txt` / `samples/batch.csv`.
+- Final review (round 2): stricter field extraction (order/invoice/decline, email-based names), en-US money formatting, no em dash in generated copy, duplicate drafts promise future refund not reversal, `LLM_CONCURRENCY`, per-item `source` chips, batch guardrails after LLM with `Batch check:` in Why, mocked Gemini tests — verified via `npm test` and curl demo triage.

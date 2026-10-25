@@ -7,6 +7,7 @@ import { runTriage } from '../server/triage-run.js';
 import { triageWithRules, CATEGORIES } from '../server/rules-engine.js';
 import { attachRelatedItems } from '../server/related.js';
 import { applyBatchContext } from '../server/batch-context.js';
+import { formatAmount } from '../server/extract.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -53,6 +54,23 @@ describe('final review refinements', () => {
     const refund = items.find((i) => i.id === 'EX-05');
     assert.ok(refund.suggestedAction.includes('No refund needed'));
     assert.ok(refund.draftReply.includes('did not capture') || refund.draftReply.includes('not been charged'));
+  });
+
+  it('failed payment without name uses "the customer" in action (EX-10)', async () => {
+    const text = await fs.readFile(path.join(__dirname, '..', 'samples', 'batch.txt'), 'utf8');
+    const { items } = await runTriage({ text });
+    const ex10 = items.find((i) => i.id === 'EX-10');
+    assert.ok(ex10.suggestedAction.includes('Ask the customer'));
+    assert.ok(!ex10.suggestedAction.includes('Ask there'));
+  });
+
+  it('formats large amounts with thousands separators in batch triage', async () => {
+    const text = await fs.readFile(path.join(__dirname, '..', 'samples', 'batch.txt'), 'utf8');
+    const { items, insights } = await runTriage({ text });
+    const ex04 = items.find((i) => i.id === 'EX-04');
+    assert.ok(ex04.suggestedAction.includes('$60.00'));
+    assert.ok(ex04.suggestedAction.includes('INV-2048'));
+    assert.equal(formatAmount(insights.moneyTotal).includes(','), true);
   });
 
   it('invoice mismatch states difference amount', () => {

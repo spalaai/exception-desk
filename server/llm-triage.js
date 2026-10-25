@@ -17,7 +17,13 @@ export async function triageItemWithContext(item, relatedSummary) {
   try {
     const llm = await triageWithLlm(item, mode, relatedSummary);
     const validated = validateLlmResult(item, llm);
-    return { ...validated, relatedIds: item.relatedIds, relatedLinks: item.relatedLinks, relatedReasons: item.relatedReasons };
+    return {
+      ...validated,
+      relatedIds: item.relatedIds,
+      relatedLinks: item.relatedLinks,
+      relatedReasons: item.relatedReasons,
+      source: 'ai',
+    };
   } catch {
     const rules = triageWithRules(item);
     return {
@@ -25,7 +31,7 @@ export async function triageItemWithContext(item, relatedSummary) {
       relatedIds: item.relatedIds,
       relatedLinks: item.relatedLinks,
       relatedReasons: item.relatedReasons,
-      fallback: 'rules',
+      source: 'rules-fallback',
     };
   }
 }
@@ -52,6 +58,10 @@ function validateLlmResult(item, llm) {
     : [];
   if (!evidenceLines.length) evidenceLines = item.evidenceLines?.length ? item.evidenceLines : [0];
 
+  let confidence = Number(llm.confidence);
+  if (!Number.isFinite(confidence)) confidence = item.confidence ?? 0.7;
+  confidence = Math.min(1, Math.max(0, confidence));
+
   return {
     id: item.id,
     rawText: item.rawText,
@@ -60,11 +70,10 @@ function validateLlmResult(item, llm) {
     priority,
     suggestedAction: String(llm.suggestedAction || item.suggestedAction || 'Review and respond'),
     draftReply: String(llm.draftReply || item.draftReply || ''),
-    confidence: Math.min(1, Math.max(0, Number(llm.confidence) || item.confidence || 0.7)),
+    confidence,
     why: String(llm.why || item.why || 'LLM classification'),
     evidenceLines,
     matchedSignals: item.matchedSignals,
-    fallback: undefined,
   };
 }
 
@@ -78,17 +87,17 @@ async function triageWithLlm(item, mode, relatedSummary) {
 
 function buildPrompt(item, relatedSummary) {
   const relatedBlock = relatedSummary
-    ? `\nRelated items in this batch (deterministic — align your reasoning with these links):\n${relatedSummary}\n`
+    ? `\nRelated items in this batch (deterministic; align your reasoning with these links):\n${relatedSummary}\n`
     : '\nNo related items detected in this batch.\n';
 
   return `You triage payment operations exceptions. Return ONLY valid JSON with keys:
 category (one of: failed payment, invoice mismatch, refund request, dispute / chargeback, duplicate charge, other / needs human),
-priority (P1, P2, or P3 — disputes, chargebacks, duplicate charges, and amounts $500+ are P1),
+priority (P1, P2, or P3; disputes, chargebacks, duplicate charges, and amounts $500+ are P1),
 suggestedAction (short imperative),
 draftReply (professional email draft using customer name, order/invoice ids, and amounts when present),
 confidence (0-1),
 why (one sentence; mention matched signals),
-evidenceLines (array of 0-based line indices from the source text that support your answer — include amount lines, decline reasons, reason codes, invoice totals).
+evidenceLines (array of 0-based line indices from the source text that support your answer; include amount lines, decline reasons, reason codes, invoice totals).
 ${relatedBlock}
 Source:
 ${item.rawText}`;

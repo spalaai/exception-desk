@@ -58,7 +58,7 @@ export function triageWithRules(item) {
       addSignal(signals, 'dispute', 0.18, lines, evidenceLines, /dispute|card network|representment/i);
     }
     suggestedAction = 'Gather evidence and respond before network deadline';
-    why = 'Dispute or chargeback language detected — time-sensitive.';
+    why = 'Dispute or chargeback language detected; time-sensitive.';
     priority = 'P1';
   } else if (matchesRefund(lower)) {
     category = CATEGORIES.REFUND;
@@ -134,7 +134,7 @@ function finish(item, fields) {
     fields: item.fields,
     relatedIds: [],
     relatedLinks: [],
-    fallback: undefined,
+    source: 'rules',
     ...fields,
   };
 }
@@ -176,20 +176,20 @@ function uniqueSorted(arr) {
 
 function buildDraft(category, details, amount) {
   const amt = amount > 0 ? ` for ${formatAmount(amount)}` : '';
-  const name = details.firstName ? details.firstName : 'there';
+  const hi = details.firstName ? `Hi ${details.firstName}` : 'Hi there';
   switch (category) {
     case CATEGORIES.FAILED:
-      return `Hi ${name} — we see the payment${amt} did not go through. Please update your card or try again; we have not charged you. Reply if you need a different payment link.`;
+      return `${hi}, we see the payment${amt} did not go through. Please update your card or try again; we have not charged you. Reply if you need a different payment link.`;
     case CATEGORIES.INVOICE:
-      return `Hi ${name} — thanks for flagging the invoice mismatch${amt}. We are reconciling against our records and will confirm the correct balance within 1–2 business days.`;
+      return `${hi}, thanks for flagging the invoice mismatch${amt}. We are reconciling against our records and will confirm the correct balance within 1-2 business days.`;
     case CATEGORIES.REFUND:
-      return `Hi ${name} — we received your refund request${amt}. We are verifying the original payment status and will confirm next steps shortly.`;
+      return `${hi}, we received your refund request${amt}. We are verifying the original payment status and will confirm next steps shortly.`;
     case CATEGORIES.DISPUTE:
-      return `Hi — we are reviewing the dispute${amt} and gathering documentation. We will respond before the network deadline and keep you posted.`;
+      return `Hi, we are reviewing the dispute${amt} and gathering documentation. We will respond before the network deadline and keep you posted.`;
     case CATEGORIES.DUPLICATE:
-      return `Hi ${name} — sorry for the duplicate charge${amt}. We are checking our processor now; if confirmed we will reverse the extra capture within 2 business days.`;
+      return `${hi}, sorry for the duplicate charge${amt}. We are checking our processor now; if confirmed we will refund the extra capture within 2 business days.`;
     default:
-      return `Hi — thanks for your message. Our team is reviewing the details and will follow up with a clear next step soon.`;
+      return `Hi, thanks for your message. Our team is reviewing the details and will follow up with a clear next step soon.`;
   }
 }
 

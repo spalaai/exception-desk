@@ -460,10 +460,16 @@ textarea {
   gap: 0.5rem;
 }
 
-.fallback-label {
+.fallback-label,
+.chip.source-chip {
   font-size: 0.75rem;
   color: #8a5a00;
   background: #fff8e6;
   padding: 0.15rem 0.4rem;
   border-radius: 4px;
+}
+
+.chip.source-chip {
+  color: #0d4a6e;
+  background: #e8f4f8;
 }
