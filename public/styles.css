@@ -225,6 +225,18 @@ textarea {
   border: 1px solid var(--border);
 }
 
+.batch-insights {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.keyboard-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 .summary-bar {
   display: flex;
   flex-wrap: wrap;
@@ -275,11 +287,42 @@ textarea {
 
 .queue-preview {
   margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.queue-preview .row-id {
+  font-weight: 600;
+  font-family: var(--mono);
   font-size: 0.8rem;
+  margin-right: 0.35rem;
+}
+
+.queue-preview .row-subject {
+  font-weight: 500;
+}
+
+.queue-preview .row-meta {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
   color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.related-link {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: none;
+  border: none;
+  font: inherit;
+  padding: 0;
+}
+
+.related-link:hover {
+  color: var(--accent-hover);
 }
 
 .chip {

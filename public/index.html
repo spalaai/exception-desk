@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Exception Desk</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d6b6e'/%3E%3Cpath d='M8 10h16v2H8zm0 6h10v2H8zm0 6h14v2H8z' fill='%23fff'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -62,6 +63,7 @@
           </label>
         </div>
       </div>
+      <p id="batch-insights" class="batch-insights hidden" aria-live="polite"></p>
       <div id="summary-bar" class="summary-bar" hidden>
         <span data-summary="total">0 total</span>
         <span data-summary="p1" class="p1">0 P1</span>
@@ -69,6 +71,7 @@
         <span data-summary="rejected">0 rejected</span>
         <span data-summary="pending">0 pending</span>
       </div>
+      <p class="keyboard-hint" id="keyboard-hint">Shortcuts: ↑/↓ or j/k move · a approve · r reject · e focus draft</p>
       <ul id="queue-list" class="queue-list" aria-label="Triage queue"></ul>
       <p id="queue-empty" class="empty-hint">Run triage to populate the queue.</p>
       <div class="export-row">
@@ -88,6 +91,7 @@
         </div>
         <p class="meta-text"><strong>Suggested action:</strong> <span id="detail-action"></span></p>
         <p class="meta-text why"><strong>Why:</strong> <span id="detail-why"></span></p>
+        <p class="meta-text related-line hidden" id="detail-related-wrap"><strong>Related:</strong> <span id="detail-related"></span></p>
         <div class="raw-block">
           <h3>Source text</h3>
           <pre id="detail-raw" class="raw-text"></pre>

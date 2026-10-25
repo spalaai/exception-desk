@@ -2,7 +2,7 @@ const $ = (sel) => document.querySelector(sel);
 
 const STORAGE_KEY = 'exception-desk-decisions';
 
-/** @type {{ triageId?: string, items: any[], selectedId?: string }} */
+/** @type {{ triageId?: string, items: any[], selectedId?: string, insights?: object }} */
 let state = { items: [] };
 
 /** @type {Record<string, { status: string, finalReply: string, updatedAt: string }>} */
@@ -63,6 +63,11 @@ function priorityClass(p) {
   return `priority-${p}`;
 }
 
+function formatMoney(n) {
+  if (!n || n <= 0) return '';
+  return `$${Number(n).toFixed(2)}`;
+}
+
 function filteredItems() {
   const cat = $('#filter-category').value;
   const status = $('#filter-status').value;
@@ -72,6 +77,23 @@ function filteredItems() {
     if (status && d.status !== status) return false;
     return true;
   });
+}
+
+function navigableItems() {
+  return filteredItems();
+}
+
+function updateBatchInsights() {
+  const el = $('#batch-insights');
+  if (!state.items.length || !state.insights) {
+    el.classList.add('hidden');
+    el.textContent = '';
+    return;
+  }
+  const { relatedGroups, p1, moneyTotal } = state.insights;
+  const money = formatMoney(moneyTotal);
+  el.textContent = `Batch insights: ${relatedGroups} related group${relatedGroups === 1 ? '' : 's'} · ${p1} P1 · ${money || '$0.00'} at stake if money-moving items are approved`;
+  el.classList.remove('hidden');
 }
 
 function updateSummary() {
@@ -94,6 +116,18 @@ function updateSummary() {
   bar.querySelector('[data-summary="pending"]').textContent = `${counts.pending} pending`;
 }
 
+function queueRowBody(item) {
+  const subject = item.displaySubject || item.suggestedAction || 'Exception';
+  const email = item.displayEmail || '';
+  const amt = formatMoney(item.displayAmount);
+  const meta = [email, amt].filter(Boolean).join(' · ');
+  return `
+    <span class="row-id">${escapeHtml(item.id)}</span>
+    <span class="row-subject">${escapeHtml(subject)}</span>
+    ${meta ? `<span class="row-meta">${escapeHtml(meta)}</span>` : ''}
+  `;
+}
+
 function renderQueue() {
   const list = $('#queue-list');
   const empty = $('#queue-empty');
@@ -105,6 +139,7 @@ function renderQueue() {
     empty.classList.remove('hidden');
     $('#export-csv').disabled = true;
     updateSummary();
+    updateBatchInsights();
     return;
   }
 
@@ -142,13 +177,14 @@ function renderQueue() {
         ${statusChip}
         ${related}
       </div>
-      <p class="queue-preview">${escapeHtml(item.suggestedAction)}</p>
+      <p class="queue-preview">${queueRowBody(item)}</p>
     `;
     li.addEventListener('click', () => selectItem(item.id));
     list.appendChild(li);
   }
 
   updateSummary();
+  updateBatchInsights();
 }
 
 function escapeHtml(s) {
@@ -170,6 +206,31 @@ function renderRawWithEvidence(item) {
     return content;
   });
   return parts.join('\n');
+}
+
+function renderRelatedLinks(item) {
+  const wrap = $('#detail-related-wrap');
+  const container = $('#detail-related');
+  const links = item.relatedLinks || [];
+  if (!links.length) {
+    wrap.classList.add('hidden');
+    container.innerHTML = '';
+    return;
+  }
+  wrap.classList.remove('hidden');
+  container.innerHTML = '';
+  links.forEach((link, idx) => {
+    if (idx > 0) container.appendChild(document.createTextNode('; '));
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'related-link';
+    btn.textContent = `${link.id} (${link.label})`;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectItem(link.id);
+    });
+    container.appendChild(btn);
+  });
 }
 
 function selectItem(id) {
@@ -196,6 +257,7 @@ function selectItem(id) {
     fb.classList.add('hidden');
   }
 
+  renderRelatedLinks(item);
   $('#detail-raw').innerHTML = renderRawWithEvidence(item);
 
   const d = getDecision(item.id);
@@ -203,6 +265,18 @@ function selectItem(id) {
   $('#detail-draft').value = draft;
 
   renderQueue();
+}
+
+function nextPendingId(afterId) {
+  const items = navigableItems();
+  const start = items.findIndex((i) => i.id === afterId);
+  for (let i = start + 1; i < items.length; i++) {
+    if (getDecision(items[i].id).status === 'pending') return items[i].id;
+  }
+  for (let i = 0; i <= start; i++) {
+    if (getDecision(items[i].id).status === 'pending') return items[i].id;
+  }
+  return null;
 }
 
 function setDecision(status) {
@@ -216,7 +290,19 @@ function setDecision(status) {
     updatedAt: new Date().toISOString(),
   };
   saveDecisions();
+  const next = nextPendingId(id);
   renderQueue();
+  if (next) selectItem(next);
+  else renderQueue();
+}
+
+function moveSelection(delta) {
+  const items = navigableItems();
+  if (!items.length) return;
+  let idx = items.findIndex((i) => i.id === state.selectedId);
+  if (idx === -1) idx = 0;
+  else idx = (idx + delta + items.length) % items.length;
+  selectItem(items[idx].id);
 }
 
 async function runTriage() {
@@ -236,6 +322,7 @@ async function runTriage() {
     }
     state.triageId = data.triageId;
     state.items = data.items || [];
+    state.insights = data.insights;
     state.selectedId = state.items[0]?.id;
     decisions = {};
     saveDecisions();
@@ -354,6 +441,32 @@ $('#detail-draft').addEventListener('input', () => {
   if (d.status === 'pending') {
     decisions[id] = { ...d, finalReply: $('#detail-draft').value, updatedAt: new Date().toISOString() };
     saveDecisions();
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  const tag = e.target.tagName;
+  if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') {
+    if (e.key === 'Escape') e.target.blur();
+    return;
+  }
+  if (!state.items.length) return;
+
+  if (e.key === 'j' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    moveSelection(1);
+  } else if (e.key === 'k' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    moveSelection(-1);
+  } else if (e.key === 'a' || e.key === 'A') {
+    e.preventDefault();
+    setDecision('approved');
+  } else if (e.key === 'r' || e.key === 'R') {
+    e.preventDefault();
+    setDecision('rejected');
+  } else if (e.key === 'e' || e.key === 'E') {
+    e.preventDefault();
+    $('#detail-draft')?.focus();
   }
 });
 
