@@ -10,7 +10,7 @@ Build mode: fast
 
 ## Slices
 
-- [ ] **1. Running desk shell with demo mode header**
+- [x] **1. Running desk shell with demo mode header**
   Becomes usable: `npm start` serves the single-screen layout (header, input, queue, detail placeholders) and `GET /api/mode` reports Demo mode (rules).
   Why now: End-to-end scaffold first so every later slice lands on a real URL and matches look-and-feel.
   PRD ref: `prd.md > The Core Journey` (step 1), `prd.md > Screens and Layout`

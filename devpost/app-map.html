@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Exception Desk — App Map</title>
+  <style>
+    :root { --ink: #1a1a1a; --muted: #555; --accent: #0d6b6e; --bg: #f7f6f3; }
+    body { font-family: system-ui, sans-serif; line-height: 1.5; color: var(--ink); background: var(--bg); margin: 0; padding: 1.25rem 1.5rem 2rem; max-width: 52rem; }
+    h1 { font-size: 1.35rem; margin: 0 0 0.25rem; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.25rem; }
+    h2 { font-size: 1rem; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    code, pre { font-family: ui-monospace, monospace; font-size: 0.85em; background: #fff; border: 1px solid #e2e0db; border-radius: 4px; }
+    code { padding: 0.1em 0.35em; }
+    pre { padding: 0.75rem; overflow-x: auto; }
+    .diagram { background: #fff; border: 1px solid #e2e0db; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+    details { margin: 0.5rem 0; }
+    a { color: var(--accent); }
+    ul { padding-left: 1.2rem; }
+    li { margin: 0.35rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Exception Desk — App Map</h1>
+  <p class="sub">Reference route. Snapshot commit: latest on <code>master</code> after build.</p>
+
+  <h2>What it does</h2>
+  <p>A small Node server serves one ops desk page. You paste or upload exceptions; <strong>Triage</strong> calls <code>POST /api/triage</code>, which parses the batch, classifies each item (rules in demo mode, optional LLM), links related rows, and returns a priority-sorted queue. The browser keeps approve/edit/reject in <code>localStorage</code>—no money moves.</p>
+
+  <h2>Flow (one action)</h2>
+  <div class="diagram" role="img" aria-label="Triage flow diagram">
+    <svg viewBox="0 0 640 120" width="100%" height="120" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="40" width="100" height="40" rx="6" fill="#eef6f6" stroke="#0d6b6e"/>
+      <text x="60" y="65" text-anchor="middle" font-size="11" fill="#1a1a1a">public/app.js</text>
+      <text x="60" y="30" text-anchor="middle" font-size="10" fill="#555">Triage click</text>
+      <path d="M110 60 H150" stroke="#0d6b6e" marker-end="url(#arrow)"/>
+      <rect x="150" y="40" width="110" height="40" rx="6" fill="#eef6f6" stroke="#0d6b6e"/>
+      <text x="205" y="65" text-anchor="middle" font-size="11">server/index.js</text>
+      <path d="M260 60 H300" stroke="#0d6b6e"/>
+      <rect x="300" y="40" width="120" height="40" rx="6" fill="#eef6f6" stroke="#0d6b6e"/>
+      <text x="360" y="65" text-anchor="middle" font-size="11">triage-run.js</text>
+      <path d="M420 60 H460" stroke="#0d6b6e"/>
+      <rect x="460" y="40" width="130" height="40" rx="6" fill="#eef6f6" stroke="#0d6b6e"/>
+      <text x="525" y="65" text-anchor="middle" font-size="11">rules-engine.js</text>
+      <text x="320" y="105" text-anchor="middle" font-size="10" fill="#555">Queue + detail in browser</text>
+      <defs><marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#0d6b6e"/></marker></defs>
+    </svg>
+  </div>
+
+  <h2>Reference route (3 stops)</h2>
+  <ol>
+    <li><code>public/app.js</code> — search <code>runTriage</code>: builds the POST body from the paste area and renders the queue from the JSON response.</li>
+    <li><code>server/triage-run.js</code> — <code>runTriage</code>: <code>parseBatch</code> → per-item <code>triageItem</code> → <code>attachRelatedItems</code> → sort by priority.</li>
+    <li><code>server/rules-engine.js</code> — <code>triageWithRules</code>: keywords, amounts (P1 if ≥ $500), disputes/duplicates always P1; sets <code>evidenceLines</code> for the detail panel highlights.</li>
+  </ol>
+
+  <h2>To change this, start here</h2>
+  <ul>
+    <li><strong>P1 rules or categories</strong> → <code>server/rules-engine.js</code> (<code>triageWithRules</code>, <code>P1_AMOUNT</code>).</li>
+    <li><strong>Related-item linking</strong> → <code>server/related.js</code> (<code>attachRelatedItems</code>).</li>
+    <li><strong>Queue layout / filters</strong> → <code>public/app.js</code> (<code>renderQueue</code>) and <code>public/styles.css</code>.</li>
+    <li><strong>Sample demo data</strong> → <code>samples/batch.txt</code> (served by <code>GET /api/sample</code>).</li>
+  </ul>
+
+  <h2>A practice to reuse</h2>
+  <p>Spec criterion: sample batch triages deterministically in demo mode. The HTTP test in <code>test/triage-http.test.js</code> loads <code>samples/batch.txt</code>, POSTs to <code>/api/triage</code>, and asserts item count, P1 volume, and related links—so a plan-first acceptance line became a repeatable command (<code>npm test</code>) instead of a manual demo script.</p>
+
+  <h2>Run again</h2>
+  <pre>npm install &amp;&amp; npm start</pre>
+  <p>Open <code>http://localhost:5173</code>. This map is a static snapshot and may drift from code after later edits.</p>
+
+  <details>
+    <summary>Optional: LLM path</summary>
+    <p><code>server/llm-triage.js</code> — <code>triageItem</code> calls OpenAI or Gemini with a 15s <code>fetch</code> timeout; on failure, sets <code>fallback: "rules"</code> and uses <code>triageWithRules</code>.</p>
+  </details>
+</body>
+</html>
