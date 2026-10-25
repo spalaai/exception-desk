@@ -20,7 +20,7 @@ Build mode: fast
   Learner check: Open the app in a browser and confirm the calm ops layout and demo mode badge match what you pictured.
   Commit: `Add HTTP server and desk shell with demo mode header`
 
-- [ ] **2. Batch parser splits CSV, JSON, and plain blocks**
+- [x] **2. Batch parser splits CSV, JSON, and plain blocks**
   Becomes usable: Parser module turns messy input into normalized items; unparseable chunks become single low-confidence-ready items.
   Why now: Triage cannot run until items exist; parser risk is isolated before the kernel.
   PRD ref: `prd.md > Input and triage`, `prd.md > States and Boundaries` (unparseable)
@@ -30,7 +30,7 @@ Build mode: fast
   Learner check: N/A until wired — Paul can skim parser tests later.
   Commit: `Add batch parser with tests`
 
-- [ ] **3. Rules triage engine and POST /api/triage (demo kernel)**
+- [x] **3. Rules triage engine and POST /api/triage (demo kernel)**
   Becomes usable: Server triages parsed items with deterministic rules (categories, P1≥$500, disputes/duplicates P1), returns queue JSON with evidence line indices.
   Why now: Unique kernel early — demo mode must work without keys before UI polish.
   PRD ref: `prd.md > Input and triage`, `prd.md > Features and Behavior`
@@ -40,7 +40,7 @@ Build mode: fast
   Learner check: After slice 4 — load sample and confirm triage categories look right.
   Commit: `Add rules triage engine and triage API`
 
-- [ ] **4. Input, sample batch, and priority-sorted queue in the UI**
+- [x] **4. Input, sample batch, and priority-sorted queue in the UI**
   Becomes usable: Paste/upload, Load sample batch, Triage fills the queue sorted P1→P3 with category and draft preview.
   Why now: First full core journey visible in the browser.
   PRD ref: `prd.md > The Core Journey` (steps 2–3), `prd.md > Review queue`
@@ -50,7 +50,7 @@ Build mode: fast
   Learner check: Load sample batch, Triage, scan the queue order and row content.
   Commit: `Wire input, sample batch, and triage queue UI`
 
-- [ ] **5. Related-item detection across the batch**
+- [x] **5. Related-item detection across the batch**
   Becomes usable: Server flags related pairs (duplicate charge, refund vs failed payment, same invoice); queue shows related indicators.
   Why now: Kernel differentiator; depends on stable triage IDs from slice 3–4.
   PRD ref: `prd.md > Review queue` (related items)
@@ -60,7 +60,7 @@ Build mode: fast
   Learner check: After triage, spot related flags on the duplicate-charge and refund/failed-payment pair.
   Commit: `Add related-item detection and queue flags`
 
-- [ ] **6. Detail panel: evidence highlights, edit draft, approve/reject/reset**
+- [x] **6. Detail panel: evidence highlights, edit draft, approve/reject/reset**
   Becomes usable: Select row → highlighted raw text, metadata, editable draft, Approve/Reject/Reset, Copy reply button; money disclaimer visible.
   Why now: Human review loop completes before persistence and export.
   PRD ref: `prd.md > Detail and decisions`, `prd.md > The Core Journey` (steps 5–6)
@@ -70,7 +70,7 @@ Build mode: fast
   Learner check: Open one item, edit draft, Approve; use Copy reply; read disclaimer.
   Commit: `Add detail panel, decisions, and copy reply`
 
-- [ ] **7. Summary bar, filters, and localStorage for decisions**
+- [x] **7. Summary bar, filters, and localStorage for decisions**
   Becomes usable: Filter by category/status; summary counts; decisions survive reload for same triage session.
   Why now: Ops desk density and persistence per PRD.
   PRD ref: `prd.md > Review queue`, `prd.md > States and Boundaries` (persistence)
@@ -80,7 +80,7 @@ Build mode: fast
   Learner check: Filter to P1 only; approve one item; refresh and confirm decision persists.
   Commit: `Add filters, summary bar, and decision persistence`
 
-- [ ] **8. Edge cases, CSV export, and input limits**
+- [x] **8. Edge cases, CSV export, and input limits**
   Becomes usable: Empty input message, 100-item cap message, unparseable → other/needs human; Export CSV with final replies.
   Why now: Boundary states before optional LLM complexity.
   PRD ref: `prd.md > States and Boundaries`, `prd.md > Features and Behavior` (export)
@@ -90,7 +90,7 @@ Build mode: fast
   Learner check: Try empty Triage; export CSV after a few decisions and open in a spreadsheet viewer.
   Commit: `Add edge-case handling and CSV export`
 
-- [ ] **9. Optional LLM triage with timeout and per-item fallback**
+- [x] **9. Optional LLM triage with timeout and per-item fallback**
   Becomes usable: With API key, header shows AI provider/model; LLM enriches items; failures fall back to rules with label.
   Why now: Opt-in layer after demo path is solid.
   PRD ref: `prd.md > States and Boundaries` (LLM fallback)
@@ -100,7 +100,7 @@ Build mode: fast
   Learner check: Paul — try with a real key when back.
   Commit: `Add optional LLM triage with rules fallback`
 
-- [ ] **10. README, LICENSE, HTTP smoke test, and UI polish pass**
+- [x] **10. README, LICENSE, HTTP smoke test, and UI polish pass**
   Becomes usable: MIT LICENSE, README (install, demo vs AI, env vars, tests, structure, Built with, Pre-existing code), `test/triage-http.test.js`, final look-and-feel cohesion.
   Why now: Submission-ready repo; mechanical smoke test locks API contract.
   PRD ref: `prd.md > Look and Feel`
@@ -123,7 +123,7 @@ Build mode: fast
 
 - [ ] Learning activity complete — guided route, focused alternative, prior practice connected, or brief recap — **waiting for Paul** (agent prepared `devpost/app-map.html` as reference route)
 - [ ] Optional edit and transfer reflection addressed — **waiting for Paul**
-- [ ] `devpost/app-map.html` generated from finished code, checked, and shown, including a project-grounded practice to reuse
+- [x] `devpost/app-map.html` generated from finished code, checked, and shown, including a project-grounded practice to reuse
 
 Activity and evidence: Agent generated `devpost/app-map.html` from post-build source (reference route; Paul has not yet done wrap-up activity).
 Route and stops: See app-map.html — triage action through `public/app.js`, `server/index.js`, `server/rules-engine.js`.
@@ -134,3 +134,4 @@ Activity mode: reference map only until Paul returns
 ## Revisions
 
 - LLM provider selection, P1 $500+ rule, disputes/duplicates always P1, Copy reply button, model defaults (`gpt-4o-mini`, `gemini-3.8-flash`), 15s fetch timeout — resolved at build; recorded in `spec.md > Decisions and Open Issues`.
+- Slices 6–8 UI behaviors landed in commit `Wire input, sample batch, and triage queue UI`; later slice commits mark those checkpoints in git history.
