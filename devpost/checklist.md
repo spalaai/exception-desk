@@ -117,6 +117,15 @@ Build mode: fast
 
 ## Final Review
 
+- [x] Queue rows show EX id, subject, customer/email, amount (keep chips)
+- [x] Rules confidence reflects signal strength; matched signals appear in Why
+- [x] Suggested actions and drafts use extracted details and related-batch context
+- [x] Detail panel shows clickable related links with reasons
+- [x] Batch insights line above queue (related groups, P1 count, money at stake)
+- [x] Evidence highlights cover decision-driving lines (amounts, codes, totals)
+- [x] Keyboard shortcuts (j/k, a, r, e) and favicon
+- [x] Approve/reject auto-selects next pending item
+- [x] AI_PROVIDER alias and LLM prompt includes related context
 - [ ] Final review complete — feedback resolved and learner confirms ready to ship — **waiting for Paul**
 
 ## Code Tour and App Map
@@ -135,3 +144,4 @@ Activity mode: reference map only until Paul returns
 
 - LLM provider selection, P1 $500+ rule, disputes/duplicates always P1, Copy reply button, model defaults (`gpt-4o-mini`, `gemini-3.8-flash`), 15s fetch timeout — resolved at build; recorded in `spec.md > Decisions and Open Issues`.
 - Slices 6–8 UI behaviors landed in commit `Wire input, sample batch, and triage queue UI`; later slice commits mark those checkpoints in git history.
+- Final review: EX- batch ids, richer queue rows, signal-based confidence, batch-context suggestions (refund/failed payment, duplicate pairs, invoice variance), related links in detail, batch insights bar, evidence highlighting, keyboard shortcuts + favicon, auto-advance after decisions, `AI_PROVIDER` alias and related context in LLM prompts — verified via `npm test` and curl on `samples/batch.txt` / `samples/batch.csv`.
