@@ -68,6 +68,7 @@ function saveSession() {
         insights: state.insights,
         inputText: $('#batch-input').value,
         selectedId: state.selectedId,
+        triagedAt: state.triagedAt,
       })
     );
   } catch {
@@ -83,6 +84,7 @@ function restoreSession() {
     state.items = saved.items;
     state.insights = saved.insights;
     state.selectedId = saved.selectedId || saved.items[0].id;
+    state.triagedAt = saved.triagedAt || '';
     if (typeof saved.inputText === 'string') $('#batch-input').value = saved.inputText;
     decisions = loadDecisionsFor(state.triageId);
     return true;
@@ -113,7 +115,7 @@ function statusPill(status) {
 function sourceTag(source) {
   if (source === 'ai') return '<span class="tag src-ai">AI</span>';
   if (source === 'rules-fallback') return '<span class="tag src-rules-fallback" title="The model call failed or timed out; rules were used for this item">Rules fallback</span>';
-  return '<span class="tag">Rules</span>';
+  return '';
 }
 
 function timeShort(iso) {
@@ -145,9 +147,7 @@ function showView(name) {
   const intake = name === 'intake';
   $('#intake-view').classList.toggle('hidden', !intake);
   $('#review-view').classList.toggle('hidden', intake);
-  $('#new-batch').classList.toggle('hidden', intake);
   $('#back-to-queue')?.classList.toggle('hidden', !(intake && state.items.length));
-  $('#clear-desk')?.classList.toggle('hidden', !(intake && state.items.length));
   window.scrollTo(0, 0);
 }
 
@@ -201,6 +201,9 @@ function renderKpis() {
   const k = computeKpis(state.items, decisions);
   const pct = (n) => (k.total ? (n / k.total) * 100 : 0);
   const groups = state.insights?.relatedGroups ?? 0;
+  const avoided = state.items
+    .filter((i) => i.batchCheck && (i.batchCheck.kind === 'refund_after_failed' || i.batchCheck.kind === 'duplicate_secondary'))
+    .reduce((sum, i) => sum + (Number(i.displayAmount) || 0), 0);
   $('#kpis').innerHTML = `
     <div class="kpi">
       <div class="kpi-label">To review</div>
@@ -224,11 +227,51 @@ function renderKpis() {
       <div class="kpi-value">${formatMoney(k.approvedRefunds, { blankZero: false })}</div>
       <div class="kpi-foot">For you to issue in your processor</div>
     </div>
-    <div class="kpi">
-      <div class="kpi-label">Related groups</div>
-      <div class="kpi-value">${groups}</div>
-      <div class="kpi-foot">Cases linked within this batch</div>
+    <div class="kpi kpi-good">
+      <div class="kpi-label">Wrong refunds avoided</div>
+      <div class="kpi-value">${formatMoney(avoided, { blankZero: false })}</div>
+      <div class="kpi-foot">${groups} related group${groups === 1 ? '' : 's'} found by batch checks</div>
     </div>`;
+  renderBatchbar();
+  renderChecks();
+}
+
+function renderBatchbar() {
+  const n = state.items.length;
+  $('#batchbar-count').textContent = `${n} exception${n === 1 ? '' : 's'} loaded`;
+  const parts = [];
+  if (state.triagedAt) parts.push(`triaged at ${timeShort(state.triagedAt)}`);
+  const src = new Set(state.items.map((i) => i.source));
+  parts.push(src.has('ai') ? 'AI triage with batch checks' : 'rules triage with batch checks');
+  $('#batchbar-meta').textContent = ' · ' + parts.join(' · ');
+}
+
+function renderChecks() {
+  const el = $('#checks');
+  const leads = state.items.filter((i) => i.batchCheck && i.batchCheck.kind !== 'duplicate_secondary');
+  const flagged = state.items.filter((i) => i.flags?.length);
+  if (!leads.length && !flagged.length) {
+    el.classList.add('hidden');
+    return;
+  }
+  const chips = leads
+    .map((i) => {
+      const ids = i.batchCheck.ids.join(' ↔ ');
+      const amt = formatMoney(i.displayAmount);
+      return `<button type="button" class="check-chip" data-goto="${esc(i.id)}"><span class="check-ids">${esc(ids)}</span><span class="check-verdict">${esc(i.batchCheck.verdict)}</span>${amt ? `<span class="check-amt">${amt}</span>` : ''}</button>`;
+    })
+    .join('');
+  const warn = flagged
+    .map((i) => `<button type="button" class="check-chip warn" data-goto="${esc(i.id)}"><span class="check-ids">${esc(i.id)}</span><span class="check-verdict">Shipped but never paid</span></button>`)
+    .join('');
+  el.innerHTML = `<div class="checks-label"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M5 12l4 4 10-10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>Batch checks</strong> ${leads.length} catch${leads.length === 1 ? '' : 'es'} you'd miss one ticket at a time</span></div><div class="checks-chips">${chips}${warn}</div>`;
+  el.classList.remove('hidden');
+}
+
+function dueShort(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function renderTabs() {
@@ -278,14 +321,20 @@ function renderQueue() {
       const d = decisionFor(decisions, item.id);
       const who = item.displayCustomer || item.displayEmail || '';
       const amt = formatMoney(item.displayAmount);
+      const due = item.dueDate ? `<span class="tag due" title="Response deadline">Due ${esc(dueShort(item.dueDate))}</span>` : '';
+      const flag = item.flags?.length ? `<span class="tag warn" title="${esc(item.flags[0])}">⚠ Check shipment</span>` : '';
+      const mark =
+        d.status === 'approved' ? '<span class="done-mark ok" aria-label="Approved">✓</span>'
+        : d.status === 'rejected' ? '<span class="done-mark rej" aria-label="Rejected">✕</span>'
+        : d.status === 'escalated' ? '<span class="done-mark esc" aria-label="Escalated">↑</span>' : '';
       const rel = item.relatedIds?.length
         ? `<span class="tag rel" title="Linked to ${esc(item.relatedIds.join(', '))}">↔ ${esc(item.relatedIds.join(', '))}</span>`
         : '';
       return `<li class="queue-item ${item.id === state.selectedId ? 'selected' : ''} ${d.status !== 'pending' ? 'done' : ''}" data-id="${esc(item.id)}" tabindex="-1">
-        <span class="prio prio-${esc(item.priority)}">${esc(item.priority)}</span>
+        ${mark || `<span class="prio prio-${esc(item.priority)}">${esc(item.priority)}</span>`}
         <div class="q-main">
           <div class="q-top"><span class="q-id">${esc(item.id)}</span><span class="q-subject">${esc(item.displaySubject || item.suggestedAction || 'Exception')}</span></div>
-          <div class="q-sub">${catTag(item.category)}${who ? `<span class="q-who">${esc(who)}</span>` : ''}${rel}</div>
+          <div class="q-sub">${catTag(item.category)}${who ? `<span class="q-who">${esc(who)}</span>` : ''}${rel}${due}${flag}</div>
         </div>
         <div class="q-right"><span class="q-amount ${amt ? '' : 'none'}">${amt || '—'}</span>${statusPill(d.status)}</div>
       </li>`;
@@ -324,25 +373,29 @@ function renderDetail() {
   const draft = d.finalReply || item.draftReply || '';
   const edited = d.finalReply && d.finalReply !== item.draftReply;
   const who = [item.displayCustomer, item.displayEmail].filter(Boolean).join(' · ');
+  const bc = item.batchCheck;
+  const processor = item.replyKind === 'processor';
 
   dc.innerHTML = `
     <div class="detail-scroll">
+      <div class="d-crumbs"><span class="prio prio-${esc(item.priority)}">${esc(item.priority)}</span>${catTag(item.category)}<span class="q-id">${esc(item.id)}</span>${statusPill(d.status)}${item.dueDate ? `<span class="tag due">Due ${esc(dueShort(item.dueDate))}</span>` : ''}</div>
       <div class="d-head">
-        <div>
-          <div class="d-crumbs"><span class="prio prio-${esc(item.priority)}">${esc(item.priority)}</span>${catTag(item.category)}<span class="q-id">${esc(item.id)}</span>${statusPill(d.status)}</div>
-          <h2 class="d-title">${esc(item.displaySubject || 'Exception')}</h2>
-          ${who ? `<p class="d-who">${esc(who)}</p>` : '<p class="d-who">No customer details found in the source</p>'}
+        <div class="d-head-main">
+          <p class="d-subject">${esc(item.displaySubject || 'Exception')}${who ? ` <span class="d-who">· ${esc(who)}</span>` : ''}</p>
+          <h2 class="verdict">${esc(bc ? bc.verdict : item.suggestedAction)}</h2>
         </div>
         <div class="d-amount"><div class="v">${amt || '—'}</div><div class="l">${amt ? 'Amount in question' : 'No amount found'}</div></div>
       </div>
-
-      <div class="rec">
-        <div class="rec-label"><span>Suggested next step</span>
-          <span class="conf ${conf < 60 ? 'low' : ''}" title="How strongly the signals support this suggestion">${sourceTag(item.source)} Confidence ${conf}% <span class="conf-bar"><span style="width:${conf}%"></span></span></span>
-        </div>
-        <p class="rec-action">${esc(item.suggestedAction)}</p>
-        <p class="rec-why"><strong>Why:</strong> ${esc(item.why)}</p>
-        ${signals.length ? `<div class="signals">${signals.map((s) => `<span class="signal">${esc(s)}</span>`).join('')}</div>` : ''}
+      ${(item.flags || []).map((f) => `<div class="flag"><strong>Check before replying.</strong> ${esc(f)}</div>`).join('')}
+      <div class="rec ${bc ? 'rec-batch' : ''}">
+        <div class="rec-label">${
+          bc
+            ? `<span class="badge-batch">✓ Batch check</span><span class="rec-src">Cross-checked with ${esc(bc.ids.filter((x) => x !== item.id).join(', '))} · deterministic</span>`
+            : `<span>Why this suggestion</span><span class="conf ${conf < 60 ? 'low' : ''}" title="Keyword match: how strongly the wording supports this category. It is a signal strength, not a probability.">${sourceTag(item.source)} Keyword match ${conf}% <span class="conf-bar"><span style="width:${conf}%"></span></span></span>`
+        }</div>
+        ${bc ? `<p class="rec-detail">${esc(bc.detail)}</p>${item.suggestedAction !== bc.verdict ? `<p class="rec-why"><strong>Next step:</strong> ${esc(item.suggestedAction)}</p>` : ''}` : ''}
+        <p class="rec-why">${bc ? '<strong>Signals:</strong> ' : ''}${esc(bc ? item.why.replace(/^Batch check:[^.]*\.\s*/, '') : item.why)}</p>
+        ${signals.length ? `<div class="signals">${signals.map((x) => `<span class="signal">${esc(x)}</span>`).join('')}</div>` : ''}
       </div>
 
       <div class="section">
@@ -371,9 +424,16 @@ function renderDetail() {
       </div>
 
       <div class="section">
-        <div class="section-title">Draft reply to customer <button type="button" class="btn ghost sm" id="copy-reply">Copy reply</button></div>
-        <textarea id="detail-draft" class="draft" rows="5" aria-label="Draft reply">${esc(draft)}</textarea>
-        <div class="draft-meta"><span id="draft-edited">${edited ? 'Edited by you' : 'Suggested draft. Edit before sending from your own inbox.'}</span><span id="draft-count">${draft.length} chars</span></div>
+        <div class="section-title">${processor ? 'Dispute response for your processor' : 'Draft email to customer'} <button type="button" class="btn ghost sm" id="copy-reply">${processor ? 'Copy response' : 'Copy email'}</button></div>
+        <div class="email">
+          ${
+            processor
+              ? `<div class="email-row"><span>Submit via</span><b>Your card processor's dispute portal</b></div><div class="email-row"><span>Note</span><b class="muted-b">Not sent to the customer. Attach evidence before submitting.</b></div>`
+              : `<div class="email-row"><span>To</span><b>${item.displayEmail ? esc(item.displayEmail) : '<em class="muted-b">No email in the source. Add the recipient when you send.</em>'}</b></div><div class="email-row"><span>Subject</span><b>Re: ${esc(item.displaySubject || 'Your payment')}</b></div>`
+          }
+          <textarea id="detail-draft" class="draft" rows="6" aria-label="Draft reply">${esc(draft)}</textarea>
+        </div>
+        <div class="draft-meta"><span id="draft-edited">${edited ? 'Edited by you' : processor ? 'Suggested response. Review it against your evidence.' : 'Suggested draft. Edit it, then send from your own inbox.'}</span><span id="draft-count">${draft.length} chars</span></div>
       </div>
 
       <div class="section" style="margin-bottom:12px">
@@ -485,6 +545,7 @@ async function runTriage() {
     state.triageId = data.triageId;
     state.items = data.items || [];
     state.insights = data.insights;
+    state.triagedAt = new Date().toISOString();
     state.filters = { status: '', category: '', query: '', sort: 'priority' };
     $('#search').value = '';
     $('#filter-category').value = '';
@@ -620,7 +681,17 @@ $('#file-upload').addEventListener('change', async (e) => {
   e.target.value = '';
 });
 
-$('#new-batch').addEventListener('click', () => showView('intake'));
+$('#edit-batch').addEventListener('click', () => {
+  showView('intake');
+  $('#batch-input').focus();
+});
+$('#new-batch').addEventListener('click', () => {
+  $('#batch-input').value = '';
+  updateInputStats();
+  setComposerError('');
+  showView('intake');
+  $('#batch-input').focus();
+});
 $('#brand-home').addEventListener('click', (e) => {
   e.preventDefault();
   showView('intake');
@@ -649,6 +720,13 @@ $('#queue-list').addEventListener('click', (e) => {
   const li = e.target.closest('.queue-item');
   if (li) selectItem(li.dataset.id);
 });
+$('#checks').addEventListener('click', (e) => {
+  const c = e.target.closest('[data-goto]');
+  if (c) {
+    state.filters.status = '';
+    selectItem(c.dataset.goto);
+  }
+});
 $('#review-view').addEventListener('click', (e) => {
   const t = e.target.closest('[data-action]');
   if (!t) return;
@@ -669,7 +747,7 @@ detail.addEventListener('click', async (e) => {
   if (e.target.closest('#copy-reply')) {
     try {
       await navigator.clipboard.writeText($('#detail-draft').value);
-      toast('Reply copied. Paste it into your email or helpdesk.');
+      toast('Copied. Paste it into your email, helpdesk or processor portal.');
     } catch {
       $('#detail-draft').select();
       toast('Clipboard blocked. The reply is selected, press Ctrl/Cmd+C.', true);
@@ -742,13 +820,7 @@ back.addEventListener('click', () => {
 });
 $('.hero-actions').insertBefore(back, $('.hero-note'));
 
-const clear = document.createElement('button');
-clear.type = 'button';
-clear.id = 'clear-desk';
-clear.className = 'btn link hidden';
-clear.textContent = 'Clear saved desk';
-clear.title = 'Remove the stored queue and all decisions from this browser';
-clear.addEventListener('click', () => {
+$('#clear-desk').addEventListener('click', () => {
   if (!confirm('Clear the stored queue and every decision in this browser? Export first if you need them.')) return;
   try {
     const all = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
@@ -765,7 +837,6 @@ clear.addEventListener('click', () => {
   showView('intake');
   toast('Desk cleared');
 });
-$('.hero-actions').insertBefore(clear, $('.hero-note'));
 
 loadMode();
 updateInputStats();

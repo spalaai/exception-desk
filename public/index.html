@@ -25,7 +25,6 @@
         Records only · nothing is sent or refunded
       </span>
       <span id="mode-badge" class="pill pill-mode" aria-live="polite"><span class="dot"></span><span class="mode-text">Checking mode…</span></span>
-      <button type="button" id="new-batch" class="btn ghost hidden">New batch</button>
     </div>
   </header>
 
@@ -94,7 +93,18 @@
 
   <!-- ============ Review view ============ -->
   <main id="review-view" class="review hidden" aria-label="Review desk">
+    <div class="batchbar" id="batchbar">
+      <div class="batchbar-info">
+        <span class="batchbar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M4 7l8-4 8 4-8 4-8-4zm0 5l8 4 8-4M4 17l8 4 8-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
+        <strong id="batchbar-count">0 exceptions loaded</strong><span class="muted" id="batchbar-meta"></span>
+      </div>
+      <div class="batchbar-actions">
+        <button type="button" id="edit-batch" class="btn ghost sm">Edit batch</button>
+        <button type="button" id="new-batch" class="btn ghost sm">New batch</button>
+      </div>
+    </div>
     <section class="kpis" id="kpis" aria-label="Batch summary"></section>
+    <section class="checks hidden" id="checks" aria-label="Batch checks"></section>
 
     <div class="workspace">
       <section class="queue card" aria-labelledby="queue-title">
@@ -102,6 +112,7 @@
           <div class="queue-title-row">
             <h2 id="queue-title">Review queue</h2>
             <div class="queue-head-actions">
+              <button type="button" id="clear-desk" class="btn link sm" title="Remove the stored queue and all decisions from this browser">Clear desk</button>
               <button type="button" id="export-open" class="btn ghost sm" disabled>
                 <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 4v12m0 0l-4-4m4 4l4-4M5 20h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 Export CSV

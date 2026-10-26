@@ -85,4 +85,9 @@ describe('desk logic', () => {
     assert.equal(refundOnApprove({ suggestedAction: 'No refund needed: payment never captured' }), false);
     assert.equal(refundOnApprove({ suggestedAction: 'Gather evidence for dispute' }), false);
   });
+
+  it('puts deadline items first within a priority', () => {
+    const withDue = [...items, { id: 'EX-09', priority: 'P1', category: 'dispute / chargeback', displayAmount: 312, dueDate: '2026-11-02' }];
+    assert.equal(sortItems(withDue)[0].id, 'EX-09');
+  });
 });

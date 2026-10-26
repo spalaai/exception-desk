@@ -72,12 +72,19 @@ export function filterItems(items, decisions, f = {}) {
 export function sortItems(items, key = 'priority') {
   const byId = (a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true });
   const byPriority = (a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9);
+  // Items with a response deadline come first within a priority, earliest deadline first.
+  const byDue = (a, b) => {
+    if (!a.dueDate && !b.dueDate) return 0;
+    if (!a.dueDate) return 1;
+    if (!b.dueDate) return -1;
+    return a.dueDate.localeCompare(b.dueDate);
+  };
   const out = [...items];
   out.sort((a, b) => {
     if (key === 'amount') return (Number(b.displayAmount) || 0) - (Number(a.displayAmount) || 0) || byPriority(a, b) || byId(a, b);
     if (key === 'id') return byId(a, b);
     if (key === 'confidence') return (a.confidence ?? 0) - (b.confidence ?? 0) || byPriority(a, b) || byId(a, b);
-    return byPriority(a, b) || (Number(b.displayAmount) || 0) - (Number(a.displayAmount) || 0) || byId(a, b);
+    return byPriority(a, b) || byDue(a, b) || (Number(b.displayAmount) || 0) - (Number(a.displayAmount) || 0) || byId(a, b);
   });
   return out;
 }
