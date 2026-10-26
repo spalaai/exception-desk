@@ -1,3 +1,4 @@
+import './_offline.js';
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { mapWithConcurrency, runTriage } from '../server/triage-run.js';
