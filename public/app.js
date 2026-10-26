@@ -791,7 +791,7 @@ const FACT_LABELS = [
 ];
 
 const SUPPORT_LABELS = { customer: 'customer', email: 'email', amount: 'amount', ref: 'ref', whatHappened: 'what happened', wants: 'what they want', link: 'link' };
-const supLabel = (k) => SUPPORT_LABELS[k] || k;
+const supLabel = (k) => String(k).split(/,\s*/).map((x) => SUPPORT_LABELS[x] || x).join(', ');
 
 function renderPasteResult(r) {
   const el = $('#paste-result');

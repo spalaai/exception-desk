@@ -52,6 +52,7 @@ const WANT_RULES = [
   ['refund', /\b(refund|money back|reembols|devolu|devuelvan|remboursement|rückerstattung)/i],
   ['cancel', /\b(cancel|cancela|anula)/i],
   ['corrected invoice', /\b(correct(ed)? invoice|fix the invoice|factura corregida|corregir la factura)/i],
+  ['a copy of the invoice', /\b(resend|send (?:me |us )?(?:a )?copy|reenv[ií]|copia de la factura)/i],
   ['explanation', /\b(why|explain|what happened|por qué|explica)/i],
 ];
 
@@ -146,7 +147,14 @@ export function rulesExtract(text) {
     }
   }
 
-  return { facts, quotes, category, amounts, refs, email: (details.email || '').toLowerCase() };
+  // One quote per source line; a line that backs several facts lists them all.
+  const merged = [];
+  for (const q of quotes) {
+    const hit = merged.find((m) => m.text === q.text);
+    if (hit) hit.supports += `, ${q.supports}`;
+    else merged.push({ ...q });
+  }
+  return { facts, quotes: merged, category, amounts, refs, email: (details.email || '').toLowerCase() };
 }
 
 /* ---------------- linking to an existing case ---------------- */
