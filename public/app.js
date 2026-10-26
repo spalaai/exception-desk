@@ -147,6 +147,7 @@ function showView(name) {
   $('#review-view').classList.toggle('hidden', intake);
   $('#new-batch').classList.toggle('hidden', intake);
   $('#back-to-queue')?.classList.toggle('hidden', !(intake && state.items.length));
+  $('#clear-desk')?.classList.toggle('hidden', !(intake && state.items.length));
   window.scrollTo(0, 0);
 }
 
@@ -740,6 +741,31 @@ back.addEventListener('click', () => {
   renderDetail();
 });
 $('.hero-actions').insertBefore(back, $('.hero-note'));
+
+const clear = document.createElement('button');
+clear.type = 'button';
+clear.id = 'clear-desk';
+clear.className = 'btn link hidden';
+clear.textContent = 'Clear saved desk';
+clear.title = 'Remove the stored queue and all decisions from this browser';
+clear.addEventListener('click', () => {
+  if (!confirm('Clear the stored queue and every decision in this browser? Export first if you need them.')) return;
+  try {
+    const all = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    delete all[state.triageId];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  } catch {
+    /* ignore */
+  }
+  localStorage.removeItem(SESSION_KEY);
+  state = { ...state, items: [], triageId: null, insights: null, selectedId: null };
+  decisions = {};
+  $('#batch-input').value = '';
+  updateInputStats();
+  showView('intake');
+  toast('Desk cleared');
+});
+$('.hero-actions').insertBefore(clear, $('.hero-note'));
 
 loadMode();
 updateInputStats();
