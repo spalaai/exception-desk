@@ -1,5 +1,5 @@
 Subject: Card declined - order NW-4412
-Customer: Elena Vasquez <elena@brightloom.shop>
+Customer: Elena Vasquez <elena@brightloom.example>
 Amount: $47.99
 Gateway: Payment failed - card declined (insufficient funds)
 Notes: Customer asked to retry tomorrow.
@@ -7,14 +7,14 @@ Notes: Customer asked to retry tomorrow.
 ---
 
 Subject: Duplicate subscription charge
-Customer: Maya Chen <maya@northwind.io>
+Customer: Maya Chen <maya@northwind.example>
 We charged $89.00 twice on 2026-10-22 for plan Pro Annual.
 Customer sees two identical charges on their statement.
 
 ---
 
 Subject: Second duplicate report (same customer)
-From: maya@northwind.io
+From: maya@northwind.example
 Double charge same day - another $89.00 capture for Northwind Pro.
 Please reverse one of these charges.
 
@@ -28,13 +28,13 @@ PO reference HT-PO-9912 on invoice line 3 missing from payment memo.
 ---
 
 Subject: Refund for order that never cleared
-Customer: Jen Park <jen@acme.co>
+Customer: Jen Park <jen@acme.example>
 Hi - please refund $120.00 for order AC-7781. Payment already failed last week but we still got a shipping confirmation email.
 
 ---
 
 Subject: Failed capture (related)
-Payment failed for jen@acme.co
+Payment failed for jen@acme.example
 Order AC-7781 amount $120.00 - declined: do not honor
 No settlement on our side.
 
@@ -42,13 +42,13 @@ No settlement on our side.
 
 Subject: Small invoice mismatch
 Invoice INV-3301 vs payment
-Customer: desk@smallbatch.io
+Customer: desk@smallbatch.example
 Invoice says $215.50, payment record shows $210.50 - off by $5.
 
 ---
 
 Subject: Refund request - routine
-From: returns@leafmarket.com
+From: returns@leafmarket.example
 Please refund $38.00 for returned item LM-992. Package received yesterday.
 
 ---

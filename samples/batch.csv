@@ -1,13 +1,13 @@
 id,customer,email,amount,category_hint,notes
-1,Elena Vasquez,elena@brightloom.shop,47.99,failed,Card declined insufficient funds order NW-4412
-2,Maya Chen,maya@northwind.io,89.00,duplicate,Charged twice Pro Annual 2026-10-22
-3,Maya Chen,maya@northwind.io,89.00,duplicate,Second identical capture same day
-4,Harbor Tools LLC,billing@harbortools.com,1240.00,invoice,INV-2048 total 1240 captured 1180 PO HT-PO-9912
-5,Jen Park,jen@acme.co,120.00,refund,Refund AC-7781 payment already failed
-6,Jen Park,jen@acme.co,120.00,failed,Order AC-7781 declined do not honor
-7,Smallbatch,desk@smallbatch.io,215.50,invoice,INV-3301 mismatch 215.50 vs 210.50
-8,Leaf Market,returns@leafmarket.com,38.00,refund,Return LM-992 refund 38.00
-9,Leaf Market,disputes@leafmarket.com,312.00,dispute,Chargeback reason 13.1 LM-CB-2026-44
-10,VoltEdge Systems,ap@voltedge.io,6200.00,failed,Annual renewal authentication required
+1,Elena Vasquez,elena@brightloom.example,47.99,failed,Card declined insufficient funds order NW-4412
+2,Maya Chen,maya@northwind.example,89.00,duplicate,Charged twice Pro Annual 2026-10-22
+3,Maya Chen,maya@northwind.example,89.00,duplicate,Second identical capture same day
+4,Harbor Tools LLC,billing@harbortools.example,1240.00,invoice,INV-2048 total 1240 captured 1180 PO HT-PO-9912
+5,Jen Park,jen@acme.example,120.00,refund,Refund AC-7781 payment already failed
+6,Jen Park,jen@acme.example,120.00,failed,Order AC-7781 declined do not honor
+7,Smallbatch,desk@smallbatch.example,215.50,invoice,INV-3301 mismatch 215.50 vs 210.50
+8,Leaf Market,returns@leafmarket.example,38.00,refund,Return LM-992 refund 38.00
+9,Leaf Market,disputes@leafmarket.example,312.00,dispute,Chargeback reason 13.1 LM-CB-2026-44
+10,VoltEdge Systems,ap@voltedge.example,6200.00,failed,Annual renewal authentication required
 11,Unknown,,0.00,other,Garbled payload ??? not parseable
 12,Generic,ops@generic.example,0.00,other,Payout timing question not sure exception
