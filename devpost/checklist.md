@@ -2,7 +2,7 @@
 doc: checklist
 status: approved
 ---
-<!-- Order approved -->
+<!-- Order approved via Paul's assistant; Paul approved submission on 2026-10-26 -->
 
 # Build Checklist
 

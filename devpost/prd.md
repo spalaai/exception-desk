@@ -2,7 +2,7 @@
 doc: prd
 status: approved
 ---
-> Answers relayed by Paul's assistant from Paul's notes on 2026-10-26.
+> Answers relayed by Paul's assistant from Paul's notes on 2026-10-26. Paul approved submission on 2026-10-26.
 
 # Exception Desk — Product Requirements
 
