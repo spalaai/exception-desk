@@ -726,7 +726,7 @@ function renderClosed() {
         <div class="r-head">
           <div class="r-brand">Exception Desk</div>
           <h2 id="closed-title">Batch closed</h2>
-          <div class="r-meta">${s.total} exceptions${startAt ? ` · triaged ${esc(timeShort(startAt))}` : ''}</div>${s.lastAt ? `<div class="r-meta">last decision ${esc(timeShort(s.lastAt))}${mins ? ` · ${mins} min on desk` : ''}</div>` : ''}
+          <div class="r-meta">${s.total} exceptions${startAt ? ` · triaged ${esc(timeShort(startAt))}` : ''}</div>${s.lastAt ? `<div class="r-meta">last decision ${esc(timeShort(s.lastAt))}</div>` : ''}${mins ? `<div class="r-meta">${mins} min on desk</div>` : ''}
         </div>
         <div class="r-rule"></div>
         ${receiptLine('Decisions made', `${s.decided}`)}
