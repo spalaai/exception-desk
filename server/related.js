@@ -12,7 +12,8 @@ const REASON_LABELS = {
  */
 export function attachRelatedItems(items) {
   const emailRe = /[\w.+-]+@[\w.-]+\.\w+/gi;
-  const invoiceRe = /(?:invoice|inv)[#\s:-]*([A-Z0-9-]{4,})/gi;
+  const invoiceRe = /\b(?:invoice|inv)\b[#\s:-]*([A-Z]{0,4}-?\d[A-Z0-9-]{2,})/gi;
+  const normInvoice = (s) => s.toUpperCase().replace(/^INV-?/, '');
 
   const byEmailAmount = new Map();
   const byInvoice = new Map();
@@ -40,16 +41,16 @@ export function attachRelatedItems(items) {
     }
 
     const invoiceIds = new Set();
-    if (details.invoiceId) invoiceIds.add(details.invoiceId.toUpperCase());
+    if (details.invoiceId) invoiceIds.add(normInvoice(details.invoiceId));
     let invMatch;
     const invCopy = text;
     invoiceRe.lastIndex = 0;
     while ((invMatch = invoiceRe.exec(invCopy)) !== null) {
-      invoiceIds.add(invMatch[1].toUpperCase());
+      invoiceIds.add(normInvoice(invMatch[1]));
     }
     const notes = item.fields?.notes || '';
     const invToken = notes.match(/\b(INV-\d+)\b/i);
-    if (invToken) invoiceIds.add(invToken[1].toUpperCase());
+    if (invToken) invoiceIds.add(normInvoice(invToken[1]));
     for (const inv of invoiceIds) {
       if (!byInvoice.has(inv)) byInvoice.set(inv, []);
       byInvoice.get(inv).push(item.id);

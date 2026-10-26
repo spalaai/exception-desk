@@ -57,4 +57,21 @@ describe('attachRelatedItems', () => {
     assert.match(linksToSix[0].label, /same email and amount/);
     assert.match(linksToSix[0].label, /refund vs failed payment/);
   });
+
+  it('does not link different invoices just because both mention the word invoice', () => {
+    const out = attachRelatedItems([
+      { id: 'EX-04', rawText: '4,Harbor Tools LLC,billing@harbortools.example,1240.00,invoice,INV-2048 total 1240', category: 'invoice mismatch' },
+      { id: 'EX-07', rawText: '7,Smallbatch,desk@smallbatch.example,215.50,invoice,INV-3301 mismatch', category: 'invoice mismatch' },
+    ]);
+    assert.deepEqual(out[0].relatedIds, []);
+    assert.deepEqual(out[1].relatedIds, []);
+  });
+
+  it('links the same invoice written as INV-2048 and "invoice 2048"', () => {
+    const out = attachRelatedItems([
+      { id: 'EX-01', rawText: 'Invoice does not match payment - INV-2048', category: 'invoice mismatch' },
+      { id: 'EX-02', rawText: 'Customer asks about invoice 2048 again', category: 'invoice mismatch' },
+    ]);
+    assert.deepEqual(out[0].relatedIds, ['EX-02']);
+  });
 });
