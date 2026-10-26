@@ -56,6 +56,7 @@ Please refund $38.00 for returned item LM-992. Package received yesterday.
 Subject: URGENT - chargeback notice
 Card network dispute - Reason code 13.1
 Merchant ref: LM-CB-2026-44
+Notice date: 2026-10-23
 Amount: $312.00
 Response due in 5 business days.
 

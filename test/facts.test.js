@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { runTriage } from '../server/triage-run.js';
-import { addBusinessDays } from '../server/batch-context.js';
+import { addBusinessDays, responseDeadline, parseNoticeDate } from '../server/batch-context.js';
 
 const sample = fs.readFileSync(new URL('../samples/batch.txt', import.meta.url), 'utf8');
 
@@ -15,10 +15,10 @@ describe('reviewer facts', () => {
   it('extracts chargeback reference, reason code and deadline', async () => {
     const { items } = await runTriage({ text: sample });
     const cb = items.find((i) => i.category === 'dispute / chargeback');
-    assert.equal(fact(cb, 'Reason code'), '13.1');
     assert.equal(fact(cb, 'Merchant ref'), 'LM-CB-2026-44');
-    assert.match(fact(cb, 'Response due'), /\(in 5 business days, counted from today\)$/);
-    assert.match(cb.dueDate, /^\d{4}-\d{2}-\d{2}$/);
+    assert.equal(fact(cb, 'Response due'), 'Fri, Oct 30, 2026 (5 business days from the notice date, Oct 23)');
+    assert.equal(cb.dueDate, '2026-10-30');
+    assert.equal(fact(cb, 'Reason code'), '13.1 (Visa: merchandise or services not received)');
   });
 
   it('shows invoice shortfall and account name', async () => {
@@ -62,5 +62,22 @@ describe('reviewer facts', () => {
     const cb = items.find((i) => i.category === 'dispute / chargeback');
     assert.equal(cb.replyKind, 'processor');
     assert.doesNotMatch(cb.draftReply, /^Hi\b/);
+  });
+
+  it('uses a stated due date, else the notice date, else a labeled estimate', () => {
+    const now = new Date(2026, 9, 26);
+    assert.equal(responseDeadline('Response due by Nov 4, 2026', now).date, '2026-11-04');
+    assert.equal(responseDeadline('Received: 23 Oct 2026\nResponse due in 5 business days.', now).date, '2026-10-30');
+    const est = responseDeadline('Response due in 5 business days.', now);
+    assert.equal(est.date, '2026-11-02');
+    assert.match(est.value, /estimate: 5 business days from today/);
+    assert.equal(parseNoticeDate('sometime soon'), null);
+  });
+
+  it('gives the failed payment the same batch-check card as the refund request', async () => {
+    const { items } = await runTriage({ text: sample });
+    const failed = items.find((i) => /Failed capture/.test(i.displaySubject));
+    assert.equal(failed.batchCheck.kind, 'failed_with_refund_request');
+    assert.deepEqual(failed.batchCheck.ids, [failed.id, items.find((i) => /never cleared/.test(i.displaySubject)).id]);
   });
 });

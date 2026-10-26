@@ -56,6 +56,20 @@ export function applyBatchContext(items, opts = {}) {
     personalizeGeneric(item, details);
   }
 
+  // Mirror the refund-vs-failed check onto the failed-payment side so both items explain it.
+  for (const item of items) {
+    if (item.batchCheck?.kind !== 'refund_after_failed') continue;
+    const failed = byId.get(item.batchCheck.ids[1]);
+    if (!failed || failed.batchCheck) continue;
+    const amt = formatAmount(failed.displayAmount) || 'this';
+    failed.batchCheck = {
+      kind: 'failed_with_refund_request',
+      verdict: failed.suggestedAction,
+      detail: `${item.id} asks for a refund of this same ${amt} payment. It was declined and never captured, so no refund is due there; handle it as a failed payment.`,
+      ids: [failed.id, item.id],
+    };
+  }
+
   return items;
 }
 
@@ -273,6 +287,65 @@ export function computeBatchInsights(items) {
  * Only fields that were actually found are returned.
  * @returns {Array<{ label: string, value: string }>}
  */
+/** Plain meanings for common Visa dispute reason codes (Visa chargeback reason code index). */
+export const REASON_CODE_MEANINGS = {
+  '10.4': 'Visa: fraud, card not present',
+  '12.6.1': 'Visa: duplicate processing',
+  '13.1': 'Visa: merchandise or services not received',
+  '13.2': 'Visa: cancelled recurring transaction',
+};
+
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+/** Parse "2026-10-23", "Oct 23, 2026" or "23 Oct 2026" into a local date; null if no full date. */
+export function parseNoticeDate(text) {
+  const t = String(text || '').trim();
+  let m = t.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  m = t.match(/\b([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})\b/);
+  if (m && MONTHS.includes(m[1].toLowerCase())) return new Date(Number(m[3]), MONTHS.indexOf(m[1].toLowerCase()), Number(m[2]));
+  m = t.match(/\b(\d{1,2})\s+([A-Za-z]{3})[a-z]*\.?\s+(\d{4})\b/);
+  if (m && MONTHS.includes(m[2].toLowerCase())) return new Date(Number(m[3]), MONTHS.indexOf(m[2].toLowerCase()), Number(m[1]));
+  return null;
+}
+
+function isoDate(d) {
+  const pad = (x) => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function niceDate(d) {
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/**
+ * Response deadline for disputes. Uses an explicit due date, else business days counted
+ * from the notice date in the text, else an estimate counted from today (labeled as such).
+ */
+export function responseDeadline(raw, now = new Date()) {
+  const text = String(raw || '');
+  const by = text.match(/response due\s+(?:by|on)\s*:?\s*([^\n]+)/i);
+  if (by) {
+    const d = parseNoticeDate(by[1]);
+    if (d) return { label: 'Response due', value: `${niceDate(d)} (stated in the notice)`, date: isoDate(d) };
+  }
+  const inDays = text.match(/response due\s+in\s+(\d+)\s+business days?/i);
+  if (!inDays) {
+    const other = text.match(/response due\s+((?:in|by)\s+[^\n.]+)/i);
+    return other ? { label: 'Response due', value: other[1].trim() } : null;
+  }
+  const n = Number(inDays[1]);
+  const noticeLine = text.match(/^\s*(?:notice date|date|received|opened|sent)\s*:\s*(.+)$/im);
+  const notice = noticeLine ? parseNoticeDate(noticeLine[1]) : null;
+  if (notice) {
+    const d = addBusinessDays(notice, n);
+    const from = notice.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return { label: 'Response due', value: `${niceDate(d)} (${n} business days from the notice date, ${from})`, date: isoDate(d) };
+  }
+  const d = addBusinessDays(now, n);
+  return { label: 'Response due', value: `${niceDate(d)} (estimate: ${n} business days from today)`, date: isoDate(d), estimate: true };
+}
+
 export function addBusinessDays(from, n) {
   const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
   let left = n;
@@ -301,21 +374,12 @@ export function buildFacts(item, details, now = new Date()) {
   if (details.missingReference) facts.push({ label: 'Missing reference', value: details.missingReference });
   const merchantRef = (raw.match(/merchant ref(?:erence)?:\s*([A-Z0-9-]+)/i) || [])[1];
   if (merchantRef) facts.push({ label: 'Merchant ref', value: merchantRef });
-  if (details.reasonCode) facts.push({ label: 'Reason code', value: details.reasonCode });
-  if (details.declineReason) facts.push({ label: 'Decline reason', value: details.declineReason });
-  const due = raw.match(/response due\s+((?:in|by)\s+[^\n.]+)/i);
-  if (due) {
-    const text = due[1].trim();
-    const n = (text.match(/^in\s+(\d+)\s+business days?/i) || [])[1];
-    if (n) {
-      const d = addBusinessDays(now, Number(n));
-      const pad = (x) => String(x).padStart(2, '0');
-      const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-      const nice = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-      facts.push({ label: 'Response due', value: `${nice} (${text}, counted from today)`, date: iso });
-    } else {
-      facts.push({ label: 'Response due', value: text });
-    }
+  if (details.reasonCode) {
+    const meaning = REASON_CODE_MEANINGS[details.reasonCode];
+    facts.push({ label: 'Reason code', value: meaning ? `${details.reasonCode} (${meaning})` : details.reasonCode });
   }
+  if (details.declineReason) facts.push({ label: 'Decline reason', value: details.declineReason });
+  const deadline = responseDeadline(raw, now);
+  if (deadline) facts.push(deadline);
   return facts;
 }
