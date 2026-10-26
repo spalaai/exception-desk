@@ -394,7 +394,7 @@ kbd {
   .queue-list { max-height: 520px; }
   .intake { grid-template-columns: 1fr; gap: 32px; padding-top: 32px; }
   .composer { position: static; }
-  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .kpis { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
   .workspace { grid-template-columns: 1fr; }
   .detail { position: static; max-height: none; }
   .pill-safe { display: none; }

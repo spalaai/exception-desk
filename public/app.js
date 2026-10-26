@@ -712,7 +712,12 @@ document.addEventListener('keydown', (e) => {
     a: () => setDecision('approved'),
     x: () => setDecision('escalated'),
     r: () => setDecision('rejected'),
-    e: () => $('#detail-draft')?.focus(),
+    e: () => {
+      const t = $('#detail-draft');
+      if (!t) return;
+      t.focus();
+      t.setSelectionRange(t.value.length, t.value.length);
+    },
     '/': () => $('#search').focus(),
   };
   if (map[k]) {
