@@ -29,10 +29,11 @@ Copy `.env.example` to `.env` for local AI trials (never commit `.env`).
 
 ## Review desk
 
-- **KPI strip**: items to review (with progress), P1 still open, amount still in review, refunds approved (only where the approved step really is a refund), related groups.
+- **Batch bar and KPIs**: how many exceptions are loaded (Edit batch / New batch); items to review (with progress), P1 still open, amount still in review, refunds approved (only where the approved step really is a refund), wrong refunds avoided.
+- **Batch checks strip**: the cross-item catches (refund asked on a payment that never captured, duplicate pairs, shipped-but-unpaid warnings); click one to open it.
 - **Queue**: priority, `EX-xx` id, subject, category, customer, linked ids, amount, status. Status tabs with counts, category filter, search (names, emails, order/invoice refs, source text), sort by priority, amount, lowest confidence or batch order.
-- **Detail**: suggested next step with confidence and why; key facts (customer, amount, order, invoice vs paid, reason code, response deadline…); related items; source text with line numbers and evidence lines highlighted; editable draft with **Copy reply**; internal note.
-- **Decisions**: **Approve**, **Escalate**, **Reject**, **Undo**; the desk moves to the next item to review. Decisions and the queue persist in this browser; **Clear saved desk** on the intake screen wipes them.
+- **Detail**: the verdict in large type; batch checks marked as deterministic cross-checks, other items with a keyword-match score; key facts (customer, amount, order, invoice vs paid, reason code, response deadline…); related items; source text with line numbers and evidence lines highlighted; the draft as an email (To, Subject) with **Copy email**, or a processor dispute response for chargebacks; internal note. Response deadlines become due dates on the row.
+- **Decisions**: **Approve**, **Escalate**, **Reject**, **Undo**; the desk moves to the next item to review. Decisions and the queue persist in this browser; **Clear desk** in the queue header wipes them.
 - **Export CSV**: preview first, all items or reviewed only. Columns: `id, priority, category, status, subject, customer, email, amount_usd, suggested_action, final_reply, reviewer_note, confidence, why, related_ids, source, decided_at`. Formula-like cells are escaped for spreadsheets.
 - **Keyboard**: `j`/`k` or arrows move; `a` approve; `x` escalate; `r` reject; `e` edit reply; `/` search.
 
