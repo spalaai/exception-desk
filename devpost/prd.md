@@ -22,7 +22,7 @@ Source: `scope.md > The Core Loop`, `scope.md > The POC Boundary`.
 Two views on one page (source: `scope.md > What "Working" Looks Like`):
 - **Header (both):** app name, "Records only" safety badge, mode indicator (demo vs AI provider/model), **New batch** when reviewing.
 - **Intake view:** left, a short pitch (who it's for, the problem, 3 steps, what it checks across a batch) with **Try the sample batch**; right, the batch composer (paste box, **Upload file**, **Load sample**, **Triage batch**), inline errors, and **Back to review queue** / **Clear saved desk** when a session exists.
-- **Review view:** KPI strip on top; queue (left) with status tabs, search, category filter, sort; detail (right) with a pinned decision bar; export dialog with preview.
+- **Review view:** slim batch bar ("12 exceptions loaded · triaged at … · Edit batch / New batch"); KPI strip; a prominent **Batch checks** strip listing cross-item catches (click to open); queue (left) with status tabs, search, category filter, sort; detail (right) with a pinned decision bar; export dialog with preview.
 
 ## Look and Feel
 Calm, serious ops tool—not generic "AI app" chrome. Light theme: warm off-white background, white cards with soft shadows, ink-dark text, deep teal accent. Priority chips: muted red (P1), amber (P2), grey (P3); status pills: grey (to review), green (approved), violet (escalated), red (rejected). Inter if installed locally, else the system UI font; monospace with line numbers for raw exception text; tabular numbers for money. Density similar to Linear: readable but information-dense.
@@ -44,7 +44,12 @@ Calm, serious ops tool—not generic "AI app" chrome. Light theme: warm off-whit
 - Evidence lines highlighted in raw text; key facts (customer, email, amount, order, invoice, invoice vs paid, missing reference, merchant ref, reason code, decline reason, response due) shown only when found.
 - Human edits draft before approving; **Copy reply** for pasting into their own inbox; optional internal note.
 - **Approve**, **Escalate**, **Reject**, **Undo**; status pills on queue rows; auto-advance to the next item to review.
-- KPI strip: to review (with progress bar), P1 open, amount still in review, refunds approved (only items whose approved step is an actual refund), related groups.
+- KPI strip: to review (with progress bar), P1 open, amount still in review, refunds approved (only items whose approved step is an actual refund), wrong refunds avoided (amounts on batch-check items where no refund or no second refund is due).
+- Detail leads with the verdict in large type. Cross-item **batch checks** (refund on a failed payment, duplicate pairs) show "Batch check · cross-checked with EX-xx · deterministic" instead of a confidence number; other items show "Keyword match NN%" with a tooltip saying it is signal strength, not a probability.
+- Warnings, e.g. a shipping confirmation sent for a payment that never captured, appear above the verdict and on the queue row.
+- Response deadlines like "in 5 business days" become a due date counted from the triage date (labeled as such), shown on the row and used to sort within a priority.
+- Customer drafts read as an email (To, Subject, proportional font) with no internal batch wording or EX ids. Chargebacks get a dispute response for the processor portal instead of a customer email.
+- Approved, escalated and rejected rows are dimmed with a check, arrow or cross; the next item scrolls into view.
 - When everything is reviewed, the queue says so and offers export.
 - Export CSV (preview first; all or reviewed only): id, priority, category, status, subject, customer, email, amount_usd, suggested_action, final_reply (blank when rejected), reviewer_note, confidence, why, related_ids, source, decided_at. Cells that start with `=`, `+`, `-` or `@` are prefixed so spreadsheets don't run them as formulas.
 

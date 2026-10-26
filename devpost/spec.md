@@ -71,7 +71,7 @@ PRD ref: `prd.md > Review queue`, `prd.md > Detail and decisions`, `prd.md > Sta
 ## Data Model
 **TriageItem** (server response, held in client memory after triage):
 `{ id, rawText, category, priority, suggestedAction, draftReply, confidence, why, matchedSignals, evidenceLines: number[], relatedIds: string[], relatedLinks, source: "rules"|"ai"|"rules-fallback", displaySubject, displayEmail, displayCustomer, displayAmount, facts: {label, value}[] }`
-`facts` come from `buildFacts` in `server/batch-context.js` (deterministic, also in AI mode); only fields actually found are included.
+`facts` come from `buildFacts` in `server/batch-context.js` (deterministic, also in AI mode); only fields actually found are included. `applyBatchContext` also sets `batchCheck { kind, verdict, detail, ids }` for cross-item checks (`refund_after_failed`, `duplicate_primary`, `duplicate_secondary`), `flags: string[]` (e.g. shipped but never captured), `replyKind: "customer"|"processor"`, and `dueDate` (YYYY-MM-DD, business days counted from the triage date).
 
 **Decision** (client + localStorage key `exception-desk-decisions`, keyed by `triageId` then item id):
 `{ status: "pending"|"approved"|"escalated"|"rejected", finalReply, note, updatedAt }`
