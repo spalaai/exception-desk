@@ -52,8 +52,16 @@ Calm, serious ops tool—not generic "AI app" chrome. Light theme: warm off-whit
 - Key facts hide empty values; the detail shows the why sentence once, with deduplicated signal chips.
 - Customer drafts read as an email (To, Subject, proportional font) with no internal batch wording or EX ids. Chargebacks get a dispute response for the processor portal instead of a customer email.
 - Approved, escalated and rejected rows are dimmed with a check, arrow or cross; the next item scrolls into view.
-- When everything is reviewed, the queue says so and offers export.
+- When the last item is decided, a **Batch closed** receipt replaces the queue: decisions made (approved / escalated / rejected), wrong refunds caught (batch-check items whose no-refund suggestion was approved or escalated; a rejected one is not counted), deadlines met (items with a due date decided on or before it), refunds to issue, and time on desk. Every number comes from the batch and this session's decisions; for the sample it is labeled "Sample data · 12 fictional cases". A teal ink **CLOSED** stamp with the date is the one decorative element. **Back to queue**, **Export decisions** and **New batch** sit under it; the queue banner keeps a **Batch summary** link.
 - Export CSV (preview first; all or reviewed only): id, priority, category, status, subject, customer, email, amount_usd, suggested_action, final_reply (blank when rejected), reviewer_note, confidence, why, related_ids, source, decided_at. Cells that start with `=`, `+`, `-` or `@` are prefixed so spreadsheets don't run them as formulas.
+
+### Paste a new one
+- **Paste a new one** in the batch bar opens a dialog: paste one message as it arrived (an angry email in Spanish, a forwarded thread, a bank letter), or pick an example (Spanish email, Forwarded thread, No match), then **Extract and link**.
+- Result: the engine used (AI provider/model, Mock AI, Rules engine or Rules fallback) and the message language; facts (customer, email, amount, order/ref, what happened, what they want), each marked **in source** or **summary**; the case it belongs to with the shared keys (same ref, same email, same amount), what the desk already says about that case, other related ids, **Open EX-xx** and **Add to EX-xx note**; or "No matching case in this batch".
+- Every quote the engine returns is checked against the pasted text with a normalized substring match (Unicode NFKC, case, curly quotes and dashes, `>` reply markers and whitespace ignored; accents kept). Matches get a **Verified in source** badge. Anything not found is listed under **Dropped**, struck through, never hidden. A specific fact value (customer, email, amount, ref) the message does not contain is dropped the same way.
+- A link the model suggests is kept only if the deterministic check agrees (shared reference, or same email and amount); otherwise the dialog says which case the model suggested and why it was not linked.
+- Rules mode (no key) extracts the same facts with patterns that read English and Spanish (`120,00 US$`, `pedido`, `reembolso`) and links by the same check. A model error or timeout falls back to rules and says so.
+- The paste never enters the queue, never sends anything and never changes a decision except an explicit **Add to note**.
 
 ## States and Boundaries
 - **First run** — intake view explains the product; nothing to review yet.
@@ -65,6 +73,7 @@ Calm, serious ops tool—not generic "AI app" chrome. Light theme: warm off-whit
 - **LLM error or timeout** — that item falls back to rules; UI labels fallback clearly.
 - **Large batch** — cap at 100 items with a clear message.
 - **Persistence** — review decisions persist in the browser between reloads (per spec); triage results live for the session.
+- **Paste errors** — empty paste: toast; over 8,000 characters: inline message; server down: inline error.
 - **Money** — no automatic refunds or payouts; human click required for any "action" (recorded as decision only in POC).
 
 ## Product Decisions

@@ -60,6 +60,14 @@ PRD ref: `prd.md > Input and triage`; implements demo mode kernel.
 If env key present: strict JSON schema prompt per item; validate response; on any error/timeout → delegate to rules for that item and set `fallback: "rules"`.
 PRD ref: `prd.md > States and Boundaries` (LLM fallback).
 
+### Paste extractor (`server/paste.js`, `server/paste-mock.js`)
+`POST /api/paste` with `{ text, cases: [{ id, rawText, category }] }` (cases come from the browser's current queue). `rulesExtract` pulls facts with the source line behind each; `findCaseLinks` scores cases (shared ref 3, same email 1, same amount 1; a link needs a shared ref or email + amount). In AI mode `buildPastePrompt` asks for JSON facts, a `linkedCaseId` and verbatim `quotes`; `verifyQuotes` keeps quotes whose `normalizeForMatch` form is a substring of the normalized paste (min 4 chars) and returns the rest as `dropped`; fact values not in the paste go to `droppedFacts`; a model link survives only if `findCaseLinks` agrees. Any model error → rules result with `fallbackReason`. `LLM_PROVIDER=mock` keeps triage on rules and answers the paste box from canned replies in `paste-mock.js` (no network; the Spanish reply includes one invented quote to show the drop); the UI labels it Mock AI. `GET /api/paste-samples` serves `samples/paste/*.txt`. Limits: 8,000 chars, 200 cases.
+PRD ref: `prd.md > Paste a new one`.
+
+### Batch closed (`public/lib/desk-logic.js > computeClosingSummary`)
+Pure function over items + decisions: decided counts, caught refunds (`refund_after_failed` and `duplicate_secondary` items approved or escalated), deadlines (`dueDate` vs the local day of `updatedAt`), approved refunds, first and last decision time. Rendered by `renderClosed` in `app.js` as a receipt; tested in `test/closing.test.js`.
+PRD ref: `prd.md > Detail and decisions`.
+
 ### Related-item detector (`server/related.js`)
 Batch pass: same email/customer + same amount within window; refund text referencing failed payment; duplicate invoice numbers (normalised so `INV-2048` and `invoice 2048` match, and the word "invoice" alone never counts as an id).
 PRD ref: `prd.md > Review queue`.
@@ -94,6 +102,9 @@ exception-desk/
 │   ├── rules-engine.js
 │   ├── llm-triage.js
 │   ├── related.js
+│   ├── batch-context.js    # facts, due dates, batch checks, drafts
+│   ├── paste.js            # Paste a new one: extract, verify quotes, link
+│   ├── paste-mock.js       # canned replies for LLM_PROVIDER=mock
 │   └── mode.js             # demo vs AI label for header
 ├── public/
 │   ├── index.html
@@ -102,20 +113,27 @@ exception-desk/
 │   └── lib/desk-logic.js   # pure, tested: filters, sort, KPIs, CSV
 ├── samples/
 │   ├── batch.csv
-│   └── batch.txt
+│   ├── batch.txt
+│   └── paste/              # spanish-email, forwarded-thread, no-match
+├── scripts/
+│   └── dry-run-paste.mjs   # live Gemini paste dry run, opt-in (needs --approved)
 ├── test/
 │   ├── parser.test.js
 │   ├── rules-engine.test.js
 │   ├── related.test.js
 │   ├── facts.test.js       # key facts on the sample batch
 │   ├── desk-logic.test.js  # client filters, KPIs, CSV export
-│   └── triage-http.test.js # smoke POST /api/triage
+│   ├── triage-http.test.js # smoke POST /api/triage
+│   ├── paste.test.js       # paste: verified/dropped quotes, links, no match, rules fallback (model mocked)
+│   ├── closing.test.js     # Batch closed numbers
+│   └── _offline.js         # forces rules mode, blocks non-localhost fetch
 └── devpost/                # planning docs
 ```
 
 ## External Services and Dependencies
 - **OpenAI Chat Completions** (optional): `POST https://api.openai.com/v1/chat/completions` — key `OPENAI_API_KEY`; model from `OPENAI_MODEL` default `gpt-4o-mini` (verify at build time).
 - **Google Gemini** (optional): Generative Language API — key `GEMINI_API_KEY`; model from `GEMINI_MODEL` default `gemini-3.8-flash`.
+- The Gemini key is sent in the `x-goog-api-key` header, not the URL, so it cannot show up in logs or error text.
 - If both keys set: use `LLM_PROVIDER=openai|gemini`; if unset, use whichever key exists (OpenAI first when both present).
 
 No npm LLM SDK required unless build finds raw `fetch` awkward on Node 20 (native `fetch` is available).

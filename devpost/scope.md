@@ -34,6 +34,8 @@ In about a minute on screen: load the sample batch, click Triage, see the queue 
 - Related-item detection within the batch
 - Export decisions; demo mode without API key (deterministic rules); optional real LLM when env key is set
 - Human always approves; no automatic money movement
+- Paste a new one: one fresh message (any language, forwarded thread) → extracted facts, link to a matching case in the batch, every quote checked against the paste
+- Batch closed summary once the queue is empty, computed from the session's decisions
 
 ## Later
 Stripe/PayPal/QuickBooks connectors, sending email, multi-user accounts, history across sessions beyond browser local storage.
@@ -43,3 +45,6 @@ Actually issuing refunds or moving money; auth/login; hosting requirement; mobil
 
 ## Revision note (2026-10-26, polish pass)
 Scope unchanged in spirit. Added an **Escalate** decision (common in finance review when something needs a second person), a per-item internal note, search/sort, and a key-facts block. Still no money movement, no sending, no accounts.
+
+## Revision note (2026-10-26, paste and close)
+Two additions inside the same kernel. **Paste a new one** covers the message that arrives after the batch: it is read, checked against the source and linked to its case, but never added to the queue or answered automatically. **Batch closed** is a summary of decisions already made. Still no money movement, no sending, no accounts.
