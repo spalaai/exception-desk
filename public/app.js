@@ -178,7 +178,7 @@ function updateInputStats() {
 
 function renderLoading() {
   showView('review');
-  $('#kpis').innerHTML = Array.from({ length: 5 }, () => '<div class="kpi"><div class="skeleton" style="height:12px;width:60%"></div><div class="skeleton" style="height:26px;width:45%;margin-top:10px"></div></div>').join('');
+  $('#kpis').innerHTML = Array.from({ length: 5 }, () => '<div class="kpi"><div class="skeleton" style="height:10px;width:70px"></div><div class="skeleton" style="height:18px;width:60px;margin-top:6px"></div></div>').join('');
   $('#status-tabs').innerHTML = '';
   $('#batchbar-count').textContent = 'Triaging batch…';
   $('#batchbar-meta').textContent = '';
@@ -215,25 +215,21 @@ function renderKpis() {
         <span class="seg-ok" style="width:${pct(k.approved)}%"></span><span class="seg-esc" style="width:${pct(k.escalated)}%"></span><span class="seg-rej" style="width:${pct(k.rejected)}%"></span>
       </div>
     </div>
-    <div class="kpi ${k.p1Open ? 'alert-kpi' : ''}">
-      <div class="kpi-label">Urgent (P1) open</div>
+    <div class="kpi ${k.p1Open ? 'alert-kpi' : ''}" title="Disputes, duplicate charges and amounts of $500 or more">
+      <div class="kpi-label">P1 open</div>
       <div class="kpi-value">${k.p1Open}</div>
-      <div class="kpi-foot">Disputes, duplicates, $500+</div>
     </div>
-    <div class="kpi">
-      <div class="kpi-label">Amount still in review</div>
+    <div class="kpi" title="${k.pending} open item${k.pending === 1 ? '' : 's'}">
+      <div class="kpi-label">Still in review</div>
       <div class="kpi-value">${formatMoney(k.openAmount, { blankZero: false })}</div>
-      <div class="kpi-foot">${k.pending} open item${k.pending === 1 ? '' : 's'}</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" title="Approved refunds for you to issue in your processor">
       <div class="kpi-label">Refunds approved</div>
       <div class="kpi-value">${formatMoney(k.approvedRefunds, { blankZero: false })}</div>
-      <div class="kpi-foot">For you to issue in your processor</div>
     </div>
-    <div class="kpi kpi-good">
-      <div class="kpi-label">Wrong refunds avoided</div>
+    <div class="kpi kpi-good" title="Refunds the batch checks show are not due: a refund asked for a payment that never captured, and second reports of a duplicate charge. ${groups} related group${groups === 1 ? '' : 's'} in this batch.">
+      <div class="kpi-label">Wrong refunds caught</div>
       <div class="kpi-value">${formatMoney(avoided, { blankZero: false })}</div>
-      <div class="kpi-foot">${groups} related group${groups === 1 ? '' : 's'} found by batch checks</div>
     </div>`;
   renderBatchbar();
   renderChecks();
@@ -251,7 +247,7 @@ function renderBatchbar() {
 
 function renderChecks() {
   const el = $('#checks');
-  const leads = state.items.filter((i) => i.batchCheck && i.batchCheck.kind !== 'duplicate_secondary');
+  const leads = state.items.filter((i) => i.batchCheck && (i.batchCheck.kind === 'refund_after_failed' || i.batchCheck.kind === 'duplicate_primary'));
   const flagged = state.items.filter((i) => i.flags?.length);
   if (!leads.length && !flagged.length) {
     el.classList.add('hidden');
@@ -267,7 +263,7 @@ function renderChecks() {
   const warn = flagged
     .map((i) => `<button type="button" class="check-chip warn" data-goto="${esc(i.id)}"><span class="check-ids">${esc(i.id)}</span><span class="check-verdict">Shipped but never paid</span></button>`)
     .join('');
-  el.innerHTML = `<div class="checks-label"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M5 12l4 4 10-10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>Batch checks</strong> ${leads.length} catch${leads.length === 1 ? '' : 'es'} you'd miss one ticket at a time</span></div><div class="checks-chips">${chips}${warn}</div>`;
+  el.innerHTML = `<div class="checks-label"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M5 12l4 4 10-10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span><strong>Batch checks</strong> ${leads.length} catch${leads.length === 1 ? '' : 'es'}${flagged.length ? ` · ${flagged.length} warning${flagged.length === 1 ? '' : 's'}` : ''}</span></div><div class="checks-chips">${chips}${warn}</div>`;
   el.classList.remove('hidden');
 }
 
@@ -372,7 +368,12 @@ function renderDetail() {
   const amt = formatMoney(item.displayAmount);
   const facts = item.facts || [];
   const byId = new Map(state.items.map((i) => [i.id, i]));
-  const signals = item.matchedSignals || [];
+  const rawSignals = [...new Set(item.matchedSignals || [])];
+  const signals = rawSignals.filter((x) => !rawSignals.some((y) => y !== x && y.includes(x)));
+  const whyText = String(item.why || '')
+    .replace(/^Batch check:[^.]*\.\s*/, '')
+    .replace(/\s*Matched signals:[^]*$/, '')
+    .trim();
   const draft = d.finalReply || item.draftReply || '';
   const edited = d.finalReply && d.finalReply !== item.draftReply;
   const who = [item.displayCustomer, item.displayEmail].filter(Boolean).join(' · ');
@@ -394,18 +395,21 @@ function renderDetail() {
         <div class="rec-label">${
           bc
             ? `<span class="badge-batch">✓ Batch check</span><span class="rec-src">Cross-checked with ${esc(bc.ids.filter((x) => x !== item.id).join(', '))} · deterministic</span>`
-            : `<span>Why this suggestion</span><span class="conf ${conf < 60 ? 'low' : ''}" title="Keyword match: how strongly the wording supports this category. It is a signal strength, not a probability.">${sourceTag(item.source)} Keyword match ${conf}% <span class="conf-bar"><span style="width:${conf}%"></span></span></span>`
+            : `<span>Why this suggestion</span><span class="conf ${conf < 60 ? 'low' : ''}" title="Signal match: how strongly the wording supports this category. It is a signal strength, not a probability.">${sourceTag(item.source)} Signal match ${conf}% <span class="conf-bar"><span style="width:${conf}%"></span></span></span>`
         }</div>
         ${bc ? `<p class="rec-detail">${esc(bc.detail)}</p>${item.suggestedAction !== bc.verdict ? `<p class="rec-why"><strong>Next step:</strong> ${esc(item.suggestedAction)}</p>` : ''}` : ''}
-        <p class="rec-why">${bc ? '<strong>Signals:</strong> ' : ''}${esc(bc ? item.why.replace(/^Batch check:[^.]*\.\s*/, '') : item.why)}</p>
-        ${signals.length ? `<div class="signals">${signals.map((x) => `<span class="signal">${esc(x)}</span>`).join('')}</div>` : ''}
+        ${bc ? '' : whyText ? `<p class="rec-why">${esc(whyText)}</p>` : ''}
+        ${!bc && signals.length ? `<div class="signals">${signals.map((x) => `<span class="signal">${esc(x)}</span>`).join('')}</div>` : ''}
       </div>
 
       <div class="section">
         <div class="section-title">Key facts <span class="hint">Pulled from the source text</span></div>
         ${
           facts.length
-            ? `<dl class="facts">${facts.map((f) => `<div class="fact"><dt>${esc(f.label)}</dt><dd>${esc(f.value)}</dd></div>`).join('')}</dl>`
+            ? `<dl class="facts">${facts
+                .filter((f) => String(f.value || '').trim())
+                .map((f, i, arr) => `<div class="fact ${i === arr.length - 1 && arr.length % 2 === 1 ? 'wide' : ''}"><dt>${esc(f.label)}</dt><dd>${esc(f.value)}</dd></div>`)
+                .join('')}</dl>`
             : '<div class="facts-empty">Nothing structured could be read from this item. Check the source below before deciding.</div>'
         }
       </div>

@@ -96,21 +96,22 @@
     <div class="batchbar" id="batchbar">
       <div class="batchbar-info">
         <span class="batchbar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M4 7l8-4 8 4-8 4-8-4zm0 5l8 4 8-4M4 17l8 4 8-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
-        <strong id="batchbar-count">0 exceptions loaded</strong><span class="muted" id="batchbar-meta"></span>
+        <div class="batchbar-text"><strong id="batchbar-count">0 exceptions loaded</strong><span class="muted small" id="batchbar-meta"></span></div>
       </div>
+      <section class="kpis" id="kpis" aria-label="Batch summary"></section>
       <div class="batchbar-actions">
         <button type="button" id="edit-batch" class="btn ghost sm">Edit batch</button>
         <button type="button" id="new-batch" class="btn ghost sm">New batch</button>
       </div>
     </div>
-    <section class="kpis" id="kpis" aria-label="Batch summary"></section>
     <section class="checks hidden" id="checks" aria-label="Batch checks"></section>
 
     <div class="workspace">
       <section class="queue card" aria-labelledby="queue-title">
         <div class="queue-head">
+          <h2 id="queue-title" class="sr-only">Review queue</h2>
           <div class="queue-title-row">
-            <h2 id="queue-title">Review queue</h2>
+            <div class="status-tabs" id="status-tabs" role="tablist" aria-label="Filter by review status"></div>
             <div class="queue-head-actions">
               <button type="button" id="clear-desk" class="btn link sm" title="Remove the stored queue and all decisions from this browser">Clear desk</button>
               <button type="button" id="export-open" class="btn ghost sm" disabled>
@@ -119,11 +120,10 @@
               </button>
             </div>
           </div>
-          <div class="status-tabs" id="status-tabs" role="tablist" aria-label="Filter by review status"></div>
           <div class="toolbar">
             <div class="search">
               <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              <input type="search" id="search" placeholder="Search name, email, order, ref…" aria-label="Search queue" />
+              <input type="search" id="search" placeholder="Search name, email, ref" aria-label="Search queue" />
               <kbd>/</kbd>
             </div>
             <select id="filter-category" aria-label="Category">
