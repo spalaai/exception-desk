@@ -36,12 +36,12 @@ Rationale: matches learner preference for one command start, minimal dependencie
 - Deployment: optional, not required for submission.
 
 ## Look and Feel
-Implement `prd.md > Look and Feel`: light off-white (`#f7f6f3` approx), ink text (`#1a1a1a`), accent deep teal (`#0d6b6e`), muted P1/P2/P3 chips. `font-family: system-ui, Inter, sans-serif` with `Inter` only if loaded locally (no required CDN). Raw text in `ui-monospace` / monospace. Compact padding, clear table/list rows—Linear-like density without copying their UI kit.
+Implement `prd.md > Look and Feel`: warm off-white (`#f6f5f2`), white cards, ink text (`#16181d`), accent deep teal (`#0d6b6e`), muted P1/P2/P3 chips, status pill colors. `font-family: Inter, system-ui, …` with `Inter` only if installed locally (no CDN, no bundled font files). Raw text in `ui-monospace` / monospace. Compact padding, clear table/list rows—Linear-like density without copying their UI kit.
 
 ## Components
 
 ### Static frontend (`public/`)
-Single-page layout: input, queue, detail, summary bar, mode header.
+One page with two views: intake (pitch + composer) and review (KPI strip, queue, detail, export dialog). `public/app.js` owns DOM and state; pure logic lives in `public/lib/desk-logic.js` (filters, sort, KPIs, refund-on-approve check, CSV building, formula-safe cells) so it is unit-tested in Node (`test/desk-logic.test.js`).
 PRD ref: `prd.md > Screens and Layout`, `prd.md > Features and Behavior`.
 
 ### HTTP server (`server/`)
@@ -61,7 +61,7 @@ If env key present: strict JSON schema prompt per item; validate response; on an
 PRD ref: `prd.md > States and Boundaries` (LLM fallback).
 
 ### Related-item detector (`server/related.js`)
-Batch pass: same email/customer + same amount within window; refund text referencing failed payment; duplicate invoice numbers.
+Batch pass: same email/customer + same amount within window; refund text referencing failed payment; duplicate invoice numbers (normalised so `INV-2048` and `invoice 2048` match, and the word "invoice" alone never counts as an id).
 PRD ref: `prd.md > Review queue`.
 
 ### Client app (`public/app.js`)
@@ -70,10 +70,11 @@ PRD ref: `prd.md > Review queue`, `prd.md > Detail and decisions`, `prd.md > Sta
 
 ## Data Model
 **TriageItem** (server response, held in client memory after triage):
-`{ id, rawText, category, priority, suggestedAction, draftReply, confidence, why, evidenceLines: number[], relatedIds: string[], fallback?: "rules" }`
+`{ id, rawText, category, priority, suggestedAction, draftReply, confidence, why, matchedSignals, evidenceLines: number[], relatedIds: string[], relatedLinks, source: "rules"|"ai"|"rules-fallback", displaySubject, displayEmail, displayCustomer, displayAmount, facts: {label, value}[] }`
+`facts` come from `buildFacts` in `server/batch-context.js` (deterministic, also in AI mode); only fields actually found are included.
 
-**Decision** (client + localStorage key `exception-desk-decisions`):
-`{ itemId, status: "pending"|"approved"|"rejected", finalReply, updatedAt }`
+**Decision** (client + localStorage key `exception-desk-decisions`, keyed by `triageId` then item id):
+`{ status: "pending"|"approved"|"escalated"|"rejected", finalReply, note, updatedAt }`
 
 Triage results are not persisted server-side (new triage replaces queue); decisions merge by `itemId` on reload if the same triage session is restored—on new triage, clear or remap decisions (simplest: clear decisions when a new triage id is issued).
 
@@ -97,7 +98,8 @@ exception-desk/
 ├── public/
 │   ├── index.html
 │   ├── styles.css
-│   └── app.js
+│   ├── app.js
+│   └── lib/desk-logic.js   # pure, tested: filters, sort, KPIs, CSV
 ├── samples/
 │   ├── batch.csv
 │   └── batch.txt
@@ -105,6 +107,8 @@ exception-desk/
 │   ├── parser.test.js
 │   ├── rules-engine.test.js
 │   ├── related.test.js
+│   ├── facts.test.js       # key facts on the sample batch
+│   ├── desk-logic.test.js  # client filters, KPIs, CSV export
 │   └── triage-http.test.js # smoke POST /api/triage
 └── devpost/                # planning docs
 ```
@@ -143,3 +147,5 @@ No npm LLM SDK required unless build finds raw `fetch` awkward on Node 20 (nativ
 - **Copy reply** button beside the draft field in the detail panel.
 
 **Open issues:** none blocking build.
+
+**Polish pass (2026-10-26):** intake/review views, KPI strip, status tabs + search + sort, Escalate status and internal note, key facts, export preview with reviewed-only option and formula-safe CSV, loading/empty/error states, sample data moved to reserved `.example` domains. No new dependencies; demo (rules) mode unchanged.

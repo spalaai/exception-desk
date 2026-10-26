@@ -1,6 +1,6 @@
 # Exception Desk
 
-**Paste the mess, review the queue.** Ops and finance teams paste or upload a batch of payment exceptions; the server triages each item into category, priority, suggested action, draft reply, and evidence lines. You review, approve, edit, or reject; nothing moves money automatically.
+**Paste the mess, review the queue.** For the one ops or finance person at a small online business who owns the "weird payments" inbox: declined cards, duplicate charges, refund requests, invoice mismatches, chargebacks. Paste or upload a batch; every item gets a category, priority, suggested next step, draft reply, key facts and highlighted evidence, and related cases in the batch are linked. You approve, escalate or reject each one and export the decisions. Nothing is sent and no money moves.
 
 ## Quick start
 
@@ -10,13 +10,13 @@ npm install && npm start
 
 Open [http://localhost:5173](http://localhost:5173) (override with `PORT`).
 
-Click **Load sample batch**, then **Triage**, to see ~12 invented exceptions sorted by priority. Each item gets a stable id (`EX-01`, `EX-02`, …) in paste order; the same ids appear in **Export CSV**.
+Click **Try the sample batch** to load and triage 12 fictional exceptions (names, companies and `.example` email domains are made up). Each item gets a stable id (`EX-01`, `EX-02`, …) in paste order; the same ids appear in the CSV export.
 
 ## Demo mode vs AI mode
 
 | Mode | When | Header |
 |------|------|--------|
-| **Demo (rules)** | No API keys in `.env` | `Demo mode (rules)` |
+| **Demo (rules)** | No API keys in `.env` | `Demo mode · rules engine` |
 | **AI** | `OPENAI_API_KEY` or `GEMINI_API_KEY` set | `AI: OpenAI / …` or `AI: Gemini / …` |
 
 - `LLM_PROVIDER` or `AI_PROVIDER`: `openai`, `gemini`, or `rules` (forces demo even if keys exist).
@@ -29,10 +29,12 @@ Copy `.env.example` to `.env` for local AI trials (never commit `.env`).
 
 ## Review desk
 
-- **Queue rows**: priority/category chips, `EX-xx` id, subject line, email, and amount when found.
-- **Batch insights** (above the queue): related groups in the batch, P1 count, and total amount on money-moving categories if those items are approved.
-- **Detail**: evidence highlights on amount/reason/invoice lines; **Related** links jump to linked items with a short reason.
-- **Keyboard**: `j`/`k` or arrow keys move selection; `a` approve; `r` reject; `e` focus draft (shown under the queue).
+- **KPI strip**: items to review (with progress), P1 still open, amount still in review, refunds approved (only where the approved step really is a refund), related groups.
+- **Queue**: priority, `EX-xx` id, subject, category, customer, linked ids, amount, status. Status tabs with counts, category filter, search (names, emails, order/invoice refs, source text), sort by priority, amount, lowest confidence or batch order.
+- **Detail**: suggested next step with confidence and why; key facts (customer, amount, order, invoice vs paid, reason code, response deadline…); related items; source text with line numbers and evidence lines highlighted; editable draft with **Copy reply**; internal note.
+- **Decisions**: **Approve**, **Escalate**, **Reject**, **Undo**; the desk moves to the next item to review. Decisions and the queue persist in this browser; **Clear saved desk** on the intake screen wipes them.
+- **Export CSV**: preview first, all items or reviewed only. Columns: `id, priority, category, status, subject, customer, email, amount_usd, suggested_action, final_reply, reviewer_note, confidence, why, related_ids, source, decided_at`. Formula-like cells are escaped for spreadsheets.
+- **Keyboard**: `j`/`k` or arrows move; `a` approve; `x` escalate; `r` reject; `e` edit reply; `/` search.
 
 ## Rules highlights (demo mode)
 
@@ -47,13 +49,13 @@ Copy `.env.example` to `.env` for local AI trials (never commit `.env`).
 npm test
 ```
 
-Covers parser, rules engine, related-item detection, refinement behaviors (ids, confidence, batch context), and an HTTP smoke test of `POST /api/triage` on the sample batch.
+Covers parser, rules engine, related-item detection, refinement behaviors (ids, confidence, batch context), key facts, client desk logic (filters, sort, KPIs, CSV export), and an HTTP smoke test of `POST /api/triage` on the sample batch.
 
 ## Project structure
 
 ```
 server/          HTTP server, parser, rules/LLM triage, related detection
-public/          Single-page desk UI (HTML/CSS/JS, no bundler)
+public/          Single-page desk UI (HTML/CSS/JS, no bundler); public/lib holds tested pure logic
 samples/         Invented batch.csv and batch.txt for demos
 test/            node:test suites
 devpost/         Planning docs and app map (hackathon)
