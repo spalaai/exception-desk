@@ -131,7 +131,7 @@ Build mode: fast
 - [x] Persist triage session and input in localStorage across reload; Clear desk with confirm
 - [x] One related link per item with joined reasons in detail panel
 - [x] Plain hyphens in sample batch files (no em/en dashes)
-- [ ] Final review complete — feedback resolved and learner confirms ready to ship — **waiting for Paul**
+- [x] Final review complete — feedback resolved and learner confirms ready to ship — Paul approved submission on 2026-10-26
 
 ## Code Tour and App Map
 
