@@ -32,7 +32,8 @@ function batchWhy(why, note) {
  * Apply batch-aware suggestions after related-item detection.
  * @param {Array<Record<string, unknown>>} items
  */
-export function applyBatchContext(items) {
+export function applyBatchContext(items, opts = {}) {
+  const now = opts.now instanceof Date ? opts.now : new Date();
   const byId = new Map(items.map((i) => [i.id, i]));
   const duplicateGroups = findDuplicateChargeGroups(items);
   const emailMap = buildEmailNameMap(items);
@@ -42,7 +43,11 @@ export function applyBatchContext(items) {
     item.displaySubject = details.subject;
     item.displayEmail = details.email;
     item.displayAmount = details.primaryAmount;
-    item.facts = buildFacts(item, details);
+    item.replyKind = item.category === CATEGORIES.DISPUTE ? 'processor' : 'customer';
+    item.flags = item.flags || [];
+    item.facts = buildFacts(item, details, now);
+    const due = item.facts.find((f) => f.label === 'Response due');
+    item.dueDate = due?.date || '';
     item.displayCustomer = item.facts.find((f) => f.label === 'Customer')?.value || '';
 
     applyRefundFailedPair(item, byId, details);
@@ -72,8 +77,19 @@ function applyRefundFailedPair(item, byId, details) {
   item.suggestedAction = 'No refund needed: payment never captured';
   item.draftReply =
     `${hi}, thanks for writing about order ${order || 'on your account'}. ` +
-    `Our records show the ${amt} payment did not capture (it failed in this same batch). ` +
-    `No refund is required; you have not been charged. If you see a pending hold, it should drop off within a few business days.`;
+    `We checked, and the ${amt} payment for this order was declined, so it was never captured and you have not been charged. ` +
+    `There is nothing to refund. If you see a pending hold on your statement, it should drop off within a few business days.`;
+  item.batchCheck = {
+    kind: 'refund_after_failed',
+    verdict: 'No refund needed: payment never captured',
+    detail: `${failedLink.id} shows the same ${amt} payment${order ? ` for order ${order}` : ''} was declined, so there is no capture to refund.`,
+    ids: [item.id, failedLink.id],
+  };
+  if (/ship(ping|ped)|dispatch|tracking/.test(lower)) {
+    item.flags.push(
+      `A shipping confirmation was sent although the payment never captured. Check whether ${order ? `order ${order}` : 'the order'} shipped and stop or recover it.`
+    );
+  }
   item.why = batchWhy(
     item.why,
     'refund requested but linked failed payment in this batch; no capture to refund.'
@@ -124,12 +140,24 @@ function applyDuplicatePair(item, groups, byId, details) {
       `${hi}, we confirmed two ${amt || 'identical'} charges for the same subscription. ` +
       `We will refund the duplicate ${amt || 'charge'} once the ledger check is complete; you should see the adjustment within 2 business days.`;
     item.why = batchWhy(item.why, 'duplicate pair in batch; primary item owns the refund.');
+    item.batchCheck = {
+      kind: 'duplicate_primary',
+      verdict: `Refund one ${amt || ''} capture, not two`.replace('  ', ' '),
+      detail: `${group.filter((g) => g !== item.id).join(', ')} reports the same ${amt || 'charge'} from the same customer. Refund once here; the other report is closed under this case.`,
+      ids: group,
+    };
   } else {
     item.suggestedAction = `Same case as ${primaryId}: no separate refund; link to primary duplicate`;
     item.draftReply =
-      `${hi}, this matches the duplicate charge we are resolving under ${primaryId}. ` +
-      `No separate action is needed on this report; the extra capture will be refunded under that case.`;
+      `${hi}, thanks for following up. This is the same duplicate ${amt || ''} charge you reported earlier, and we are already refunding it. `.replace('  ', ' ') +
+      `There is nothing more you need to do; you will see one refund, not two.`;
     item.why = batchWhy(item.why, `same duplicate case as ${primaryId}.`);
+    item.batchCheck = {
+      kind: 'duplicate_secondary',
+      verdict: `Same case as ${primaryId}: no second refund`,
+      detail: `This is a second report of the duplicate ${amt || 'charge'} handled in ${primaryId}. Approving records it as closed without another refund.`,
+      ids: group,
+    };
   }
 }
 
@@ -144,10 +172,16 @@ function applyInvoiceMismatch(item, details) {
     const dir = short ? 'short' : 'over';
     item.suggestedAction = `Reconcile invoice ${inv || ''}: payment ${diff} ${dir} vs invoice`.trim();
     const ref = details.missingReference ? ` Missing reference: ${details.missingReference}.` : '';
+    const po = (details.missingReference.match(/\b((?:[A-Z]{2,}-)?PO-\d+)\b/i) || [])[1];
     item.draftReply =
-      `${hi}, we see invoice ${inv || 'on file'} is ${diff} ${dir} compared to what we captured.` +
-      ref +
-      ` We are aligning the payment memo and will confirm the corrected balance within 1-2 business days.`;
+      `${hi}, thanks for your payment against invoice ${inv || 'on file'}. ` +
+      (short
+        ? `The amount we received is ${diff} less than the invoice total, so a balance of ${diff} is still open.`
+        : `The amount we received is ${diff} more than the invoice total.`) +
+      (po ? ` The payment memo is also missing your PO reference ${po}.` : '') +
+      (short
+        ? ` Could you confirm whether the balance is on its way, or let us know if a deduction was applied?`
+        : ` We will confirm how you would like the difference handled.`);
     item.why = batchWhy(
       item.why,
       `invoice variance ${diff} (${dir}).${ref ? ` ${details.missingReference}` : ''}`
@@ -185,9 +219,12 @@ function personalizeGeneric(item, details) {
   } else if (item.category === CATEGORIES.DISPUTE) {
     const rc = details.reasonCode ? ` (reason code ${details.reasonCode})` : '';
     item.suggestedAction = `Gather evidence for dispute${rc}; respond before network deadline`;
+    const ref = (item.rawText.match(/merchant ref(?:erence)?:\s*([A-Z0-9-]+)/i) || [])[1];
     item.draftReply =
-      `Hi, we are reviewing the dispute${amt ? ` for ${amt}` : ''}${rc} and gathering documentation. ` +
-      `We will respond before the network deadline and keep you posted.`;
+      `Dispute response${ref ? ` for ${ref}` : ''}${amt ? `, ${amt}` : ''}${rc}.\n` +
+      `We contest this dispute. The charge was authorised by the cardholder and the order was fulfilled as described.\n` +
+      `Evidence attached: order receipt, proof of delivery or service, customer communication, and our refund policy.\n` +
+      `[Before submitting: attach the documents above and check them against the reason code.]`;
   }
 }
 
@@ -237,7 +274,18 @@ export function computeBatchInsights(items) {
  * Only fields that were actually found are returned.
  * @returns {Array<{ label: string, value: string }>}
  */
-export function buildFacts(item, details) {
+export function addBusinessDays(from, n) {
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  let left = n;
+  while (left > 0) {
+    d.setDate(d.getDate() + 1);
+    const wd = d.getDay();
+    if (wd !== 0 && wd !== 6) left--;
+  }
+  return d;
+}
+
+export function buildFacts(item, details, now = new Date()) {
   const facts = [];
   const money = (n) =>
     `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -257,6 +305,18 @@ export function buildFacts(item, details) {
   if (details.reasonCode) facts.push({ label: 'Reason code', value: details.reasonCode });
   if (details.declineReason) facts.push({ label: 'Decline reason', value: details.declineReason });
   const due = raw.match(/response due\s+((?:in|by)\s+[^\n.]+)/i);
-  if (due) facts.push({ label: 'Response due', value: due[1].trim() });
+  if (due) {
+    const text = due[1].trim();
+    const n = (text.match(/^in\s+(\d+)\s+business days?/i) || [])[1];
+    if (n) {
+      const d = addBusinessDays(now, Number(n));
+      const pad = (x) => String(x).padStart(2, '0');
+      const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const nice = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      facts.push({ label: 'Response due', value: `${nice} (${text}, counted from today)`, date: iso });
+    } else {
+      facts.push({ label: 'Response due', value: text });
+    }
+  }
   return facts;
 }

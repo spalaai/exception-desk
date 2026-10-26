@@ -263,7 +263,7 @@ function buildDraft(category, details, amount) {
     case CATEGORIES.REFUND:
       return `${hi}, we received your refund request${amt}. We are verifying the original payment status and will confirm next steps shortly.`;
     case CATEGORIES.DISPUTE:
-      return `Hi, we are reviewing the dispute${amt} and gathering documentation. We will respond before the network deadline and keep you posted.`;
+      return `Dispute response${amt}: we contest this dispute and are gathering evidence (receipt, proof of delivery or service, customer communication). [Attach documents before submitting to the processor.]`;
     case CATEGORIES.DUPLICATE:
       return `${hi}, sorry for the duplicate charge${amt}. We are checking our processor now; if confirmed we will refund the extra capture within 2 business days.`;
     default:
