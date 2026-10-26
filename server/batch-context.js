@@ -222,9 +222,8 @@ function personalizeGeneric(item, details) {
     const ref = (item.rawText.match(/merchant ref(?:erence)?:\s*([A-Z0-9-]+)/i) || [])[1];
     item.draftReply =
       `Dispute response${ref ? ` for ${ref}` : ''}${amt ? `, ${amt}` : ''}${rc}.\n` +
-      `We contest this dispute. The charge was authorised by the cardholder and the order was fulfilled as described.\n` +
-      `Evidence attached: order receipt, proof of delivery or service, customer communication, and our refund policy.\n` +
-      `[Before submitting: attach the documents above and check them against the reason code.]`;
+      `We are contesting this dispute and have attached: order receipt, proof of delivery or service, customer communication, and our refund policy.\n` +
+      `[Before submitting: confirm the charge was authorised and the order was delivered as described, attach the documents, and check them against the reason code.]`;
   }
 }
 

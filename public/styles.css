@@ -443,7 +443,7 @@ kbd {
 /* Email-style draft */
 .email { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
 .email-row { display: flex; gap: 10px; padding: 7px 14px; border-bottom: 1px solid var(--border); font-size: 13px; }
-.email-row span { width: 64px; flex: none; color: var(--muted); }
+.email-row span { width: 82px; flex: none; color: var(--muted); }
 .email-row b { font-weight: 550; min-width: 0; overflow-wrap: anywhere; }
 .muted-b { color: var(--muted); font-weight: 450; font-style: normal; }
 .email .draft { border: none; border-radius: 0; min-height: 140px; font-family: var(--font); }

@@ -180,6 +180,9 @@ function renderLoading() {
   showView('review');
   $('#kpis').innerHTML = Array.from({ length: 5 }, () => '<div class="kpi"><div class="skeleton" style="height:12px;width:60%"></div><div class="skeleton" style="height:26px;width:45%;margin-top:10px"></div></div>').join('');
   $('#status-tabs').innerHTML = '';
+  $('#batchbar-count').textContent = 'Triaging batch…';
+  $('#batchbar-meta').textContent = '';
+  $('#checks').classList.add('hidden');
   $('#queue-banner').classList.add('hidden');
   $('#queue-empty').classList.add('hidden');
   $('#export-open').disabled = true;
