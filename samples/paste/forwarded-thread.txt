@@ -1,0 +1,9 @@
+Can you take this one? Bank letter came in overnight.
+
+---------- Forwarded message ---------
+From: Leaf Market Returns <returns@leafmarket.example>
+Subject: Fwd: chargeback letter
+
+> Our bank says the cardholder disputed $312.00 (reason code 13.1).
+> Their reference: LM-CB-2026-44.
+> They want proof the order was delivered.

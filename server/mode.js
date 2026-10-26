@@ -12,6 +12,11 @@ export function getModeInfo() {
   const geminiKey = process.env.GEMINI_API_KEY?.trim();
   const providerPref = providerPreference();
 
+  if (providerPref === 'mock') {
+    // Offline demo of the paste box's AI path with canned replies; batch triage stays on rules.
+    return { mode: 'demo', label: 'Demo mode (rules) · paste box: mock AI', pasteMock: true };
+  }
+
   if (providerPref === 'rules') {
     return { mode: 'demo', label: 'Demo mode (rules)' };
   }

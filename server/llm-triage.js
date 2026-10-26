@@ -78,11 +78,14 @@ function validateLlmResult(item, llm) {
 }
 
 async function triageWithLlm(item, mode, relatedSummary) {
-  const prompt = buildPrompt(item, relatedSummary);
-  if (mode.provider === 'gemini') {
-    return callGemini(prompt, mode.model);
-  }
-  return callOpenAI(prompt, mode.model);
+  return callModelJson(buildPrompt(item, relatedSummary), mode);
+}
+
+/** One JSON-mode model call for the configured provider (also used by the paste box). */
+export async function callModelJson(prompt, mode = getModeInfo()) {
+  if (mode.provider === 'gemini') return callGemini(prompt, mode.model);
+  if (mode.provider === 'openai') return callOpenAI(prompt, mode.model);
+  throw new Error('no model configured');
 }
 
 function buildPrompt(item, relatedSummary) {
@@ -142,10 +145,11 @@ async function callOpenAI(prompt, model) {
 async function callGemini(prompt, model) {
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) throw new Error('no gemini key');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
+  // Key goes in a header, not the URL, so it can't leak into logs or error messages.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const res = await fetchWithTimeout(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },

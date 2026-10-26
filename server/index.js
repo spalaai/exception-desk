@@ -4,6 +4,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { getModeInfo } from './mode.js';
 import { runTriage } from './triage-run.js';
+import { runPaste } from './paste.js';
+import { mockPasteModel } from './paste-mock.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -81,6 +83,7 @@ async function serveStatic(req, res, urlPath) {
 /** @type {import('./index.js').createApp} */
 export function createApp(handlers = {}) {
   const onTriage = handlers.onTriage || null;
+  const onPaste = handlers.onPaste || null;
 
   return async (req, res) => {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -118,6 +121,33 @@ export function createApp(handlers = {}) {
       return;
     }
 
+    if (req.method === 'GET' && pathname === '/api/paste-samples') {
+      try {
+        const dir = path.join(__dirname, '..', 'samples', 'paste');
+        const names = ['spanish-email', 'forwarded-thread', 'no-match'];
+        const samples = {};
+        for (const n of names) samples[n] = await fs.readFile(path.join(dir, `${n}.txt`), 'utf8');
+        sendJson(res, 200, { samples });
+      } catch {
+        sendJson(res, 404, { error: 'Paste samples not found' });
+      }
+      return;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/paste') {
+      if (!onPaste) {
+        sendJson(res, 503, { error: 'Paste not configured' });
+        return;
+      }
+      try {
+        const body = await readBody(req);
+        sendJson(res, 200, await onPaste(body));
+      } catch (err) {
+        sendJson(res, err.status || 500, { error: err.message || 'Extraction failed' });
+      }
+      return;
+    }
+
     if (req.method === 'GET' && !pathname.startsWith('/api')) {
       await serveStatic(req, res, pathname);
       return;
@@ -128,7 +158,14 @@ export function createApp(handlers = {}) {
   };
 }
 
-const app = createApp({ onTriage: runTriage });
+export function pasteHandler(body) {
+  if (getModeInfo().pasteMock) {
+    return runPaste(body, { model: mockPasteModel, engineLabel: 'Mock AI (canned reply, no API call)', source: 'mock-ai' });
+  }
+  return runPaste(body);
+}
+
+const app = createApp({ onTriage: runTriage, onPaste: pasteHandler });
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (isMain) {

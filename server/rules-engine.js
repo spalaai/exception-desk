@@ -34,7 +34,7 @@ export function triageWithRules(item) {
   let category = CATEGORIES.OTHER;
   let priority = 'P3';
   let suggestedAction = 'Review manually and assign owner';
-  let why = 'No strong keyword match; needs human judgment.';
+  let why = 'No clear signal; needs human judgment.';
 
   if (item.parseWarning === 'unparseable') {
     return finish(item, {
