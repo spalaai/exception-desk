@@ -10,8 +10,16 @@ export const STATUS_LABELS = {
   rejected: 'Rejected',
 };
 
-/** Categories where approving the suggestion implies money moving back to a customer. */
-export const MONEY_CATEGORIES = new Set(['refund request', 'duplicate charge', 'dispute / chargeback']);
+/**
+ * True when approving this item's suggested action means refunding the customer.
+ * "No refund needed" / "no separate refund" suggestions (e.g. refund asked for a payment
+ * that never captured, or the second report of a duplicate) do not count.
+ */
+export function refundOnApprove(item) {
+  const action = String(item?.suggestedAction || '');
+  if (!/\brefund\b/i.test(action)) return false;
+  return !/\bno (?:separate )?refund\b|refund (?:is )?not needed|nothing to refund/i.test(action);
+}
 
 const PRIORITY_RANK = { P1: 0, P2: 1, P3: 2 };
 
@@ -83,7 +91,7 @@ export function computeKpis(items, decisions) {
     rejected: 0,
     p1Open: 0,
     openAmount: 0,
-    approvedPayout: 0,
+    approvedRefunds: 0,
     reviewed: 0,
     reviewedPct: 0,
   };
@@ -95,7 +103,7 @@ export function computeKpis(items, decisions) {
       k.openAmount += amt;
       if (item.priority === 'P1') k.p1Open++;
     }
-    if (st === 'approved' && MONEY_CATEGORIES.has(item.category)) k.approvedPayout += amt;
+    if (st === 'approved' && refundOnApprove(item)) k.approvedRefunds += amt;
   }
   k.reviewed = k.total - k.pending;
   k.reviewedPct = k.total ? Math.round((k.reviewed / k.total) * 100) : 0;
