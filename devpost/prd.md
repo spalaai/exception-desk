@@ -44,10 +44,12 @@ Calm, serious ops tool—not generic "AI app" chrome. Light theme: warm off-whit
 - Evidence lines highlighted in raw text; key facts (customer, email, amount, order, invoice, invoice vs paid, missing reference, merchant ref, reason code, decline reason, response due) shown only when found.
 - Human edits draft before approving; **Copy reply** for pasting into their own inbox; optional internal note.
 - **Approve**, **Escalate**, **Reject**, **Undo**; status pills on queue rows; auto-advance to the next item to review.
-- KPI strip: to review (with progress bar), P1 open, amount still in review, refunds approved (only items whose approved step is an actual refund), wrong refunds avoided (amounts on batch-check items where no refund or no second refund is due).
-- Detail leads with the verdict in large type. Cross-item **batch checks** (refund on a failed payment, duplicate pairs) show "Batch check · cross-checked with EX-xx · deterministic" instead of a confidence number; other items show "Keyword match NN%" with a tooltip saying it is signal strength, not a probability.
+- KPI strip: to review (with progress bar), P1 open, amount still in review, refunds approved (only items whose approved step is an actual refund), wrong refunds caught (amounts on batch-check items where no refund or no second refund is due).
+- Detail leads with the verdict in large type. Cross-item **batch checks** (refund on a failed payment, duplicate pairs) show "Batch check · cross-checked with EX-xx · deterministic" instead of a confidence number, on both items of a refund/failed-payment pair; other items show "Signal match NN%" with a tooltip saying it is signal strength, not a probability.
 - Warnings, e.g. a shipping confirmation sent for a payment that never captured, appear above the verdict and on the queue row.
-- Response deadlines like "in 5 business days" become a due date counted from the triage date (labeled as such), shown on the row and used to sort within a priority.
+- Response deadlines become a due date shown on the row and used to sort within a priority: a stated due date is used as is; "in N business days" is counted from the notice date in the text when present, otherwise from today and labeled "estimate: N business days from today".
+- Common Visa reason codes show a plain meaning next to the code (10.4, 12.6.1, 13.1 merchandise or services not received, 13.2).
+- Key facts hide empty values; the detail shows the why sentence once, with deduplicated signal chips.
 - Customer drafts read as an email (To, Subject, proportional font) with no internal batch wording or EX ids. Chargebacks get a dispute response for the processor portal instead of a customer email.
 - Approved, escalated and rejected rows are dimmed with a check, arrow or cross; the next item scrolls into view.
 - When everything is reviewed, the queue says so and offers export.
