@@ -42,6 +42,8 @@ export function applyBatchContext(items) {
     item.displaySubject = details.subject;
     item.displayEmail = details.email;
     item.displayAmount = details.primaryAmount;
+    item.facts = buildFacts(item, details);
+    item.displayCustomer = item.facts.find((f) => f.label === 'Customer')?.value || '';
 
     applyRefundFailedPair(item, byId, details);
     applyDuplicatePair(item, duplicateGroups, byId, details);
@@ -228,4 +230,33 @@ export function computeBatchInsights(items) {
   const relatedGroups = [...components.values()].filter((s) => s.size >= 2).length;
 
   return { relatedGroups, p1, moneyTotal };
+}
+
+/**
+ * Structured, reviewer-facing facts pulled from the raw text (deterministic, same in AI mode).
+ * Only fields that were actually found are returned.
+ * @returns {Array<{ label: string, value: string }>}
+ */
+export function buildFacts(item, details) {
+  const facts = [];
+  const money = (n) =>
+    `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const raw = item.rawText || '';
+  const account = details.customerName || (raw.match(/^\s*account:\s*(.+)$/im) || [])[1]?.trim() || '';
+  if (account) facts.push({ label: 'Customer', value: account });
+  if (details.email) facts.push({ label: 'Email', value: details.email });
+  if (details.primaryAmount > 0) facts.push({ label: 'Amount', value: money(details.primaryAmount) });
+  if (details.orderId) facts.push({ label: 'Order', value: details.orderId });
+  if (details.invoiceId) facts.push({ label: 'Invoice', value: details.invoiceId });
+  if (details.invoiceDelta !== null && details.invoiceDelta !== undefined && details.invoiceDelta !== 0) {
+    facts.push({ label: 'Invoice vs paid', value: `${money(Math.abs(details.invoiceDelta))} ${details.invoiceDelta > 0 ? 'short' : 'over'}` });
+  }
+  if (details.missingReference) facts.push({ label: 'Missing reference', value: details.missingReference });
+  const merchantRef = (raw.match(/merchant ref(?:erence)?:\s*([A-Z0-9-]+)/i) || [])[1];
+  if (merchantRef) facts.push({ label: 'Merchant ref', value: merchantRef });
+  if (details.reasonCode) facts.push({ label: 'Reason code', value: details.reasonCode });
+  if (details.declineReason) facts.push({ label: 'Decline reason', value: details.declineReason });
+  const due = raw.match(/response due\s+((?:in|by)\s+[^\n.]+)/i);
+  if (due) facts.push({ label: 'Response due', value: due[1].trim() });
+  return facts;
 }
