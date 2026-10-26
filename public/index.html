@@ -100,13 +100,19 @@
       </div>
       <section class="kpis" id="kpis" aria-label="Batch summary"></section>
       <div class="batchbar-actions">
+        <button type="button" id="paste-open" class="btn primary sm" title="Extract the facts from one new message and link it to a case in this batch">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          Paste a new one
+        </button>
         <button type="button" id="edit-batch" class="btn ghost sm">Edit batch</button>
         <button type="button" id="new-batch" class="btn ghost sm">New batch</button>
       </div>
     </div>
     <section class="checks hidden" id="checks" aria-label="Batch checks"></section>
 
-    <div class="workspace">
+    <section id="closed-view" class="closed hidden" aria-labelledby="closed-title"></section>
+
+    <div class="workspace" id="workspace">
       <section class="queue card" aria-labelledby="queue-title">
         <div class="queue-head">
           <h2 id="queue-title" class="sr-only">Review queue</h2>
@@ -186,6 +192,38 @@
         </div>
       </div>
     </form>
+  </dialog>
+
+ <dialog id="paste-dialog" class="dialog dialog-wide" aria-labelledby="paste-title">
+    <div class="dialog-inner">
+      <div class="dialog-head">
+        <h2 id="paste-title">Paste a new one</h2>
+        <button type="button" class="icon-btn" id="paste-close" aria-label="Close">×</button>
+      </div>
+      <p class="muted">One new message, as it arrived: an angry email in any language, a forwarded thread, a bank letter. Exception Desk pulls out the facts, checks every quote against what you pasted and finds the case it belongs to in this batch.</p>
+      <div class="paste-grid">
+        <div class="paste-input">
+          <label for="paste-text" class="sr-only">Message to read</label>
+          <textarea id="paste-text" spellcheck="false" placeholder="Paste the message here…"></textarea>
+          <div class="paste-tools">
+            <span class="muted small">Examples:</span>
+            <button type="button" class="chip-btn" data-paste-sample="spanish-email">Spanish email</button>
+            <button type="button" class="chip-btn" data-paste-sample="forwarded-thread">Forwarded thread</button>
+            <button type="button" class="chip-btn" data-paste-sample="no-match">No match</button>
+          </div>
+          <div class="paste-run">
+            <span class="muted small" id="paste-engine"></span>
+            <button type="button" id="paste-run" class="btn primary"><span class="spinner" aria-hidden="true"></span><span class="btn-label">Extract and link</span></button>
+          </div>
+        </div>
+        <div class="paste-result" id="paste-result" aria-live="polite">
+          <div class="paste-placeholder">
+            <strong>Facts, the matching case and the quotes behind them show here.</strong>
+            <span>Nothing is sent and nothing is added to the queue. You decide what to do with it.</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </dialog>
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>

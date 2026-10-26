@@ -5,6 +5,7 @@ import {
   filterItems,
   sortItems,
   computeKpis,
+  computeClosingSummary,
   buildCsv,
   buildCsvRows,
   exportFilename,
@@ -30,6 +31,9 @@ let state = {
   insights: null,
   selectedId: null,
   sampleText: '',
+  isSample: false,
+  showClosed: false,
+  mode: null,
   filters: { status: '', category: '', query: '', sort: 'priority' },
 };
 /** @type {Record<string, { status: string, finalReply?: string, note?: string, updatedAt?: string }>} */
@@ -69,6 +73,7 @@ function saveSession() {
         inputText: $('#batch-input').value,
         selectedId: state.selectedId,
         triagedAt: state.triagedAt,
+        isSample: state.isSample,
       })
     );
   } catch {
@@ -85,6 +90,7 @@ function restoreSession() {
     state.insights = saved.insights;
     state.selectedId = saved.selectedId || saved.items[0].id;
     state.triagedAt = saved.triagedAt || '';
+    state.isSample = Boolean(saved.isSample);
     if (typeof saved.inputText === 'string') $('#batch-input').value = saved.inputText;
     decisions = loadDecisionsFor(state.triageId);
     return true;
@@ -301,7 +307,7 @@ function renderQueue() {
 
   const banner = $('#queue-banner');
   if (state.items.length && k.pending === 0) {
-    banner.innerHTML = `<span>All ${k.total} exceptions reviewed. Export the decisions to hand off.</span><button type="button" class="btn ghost sm" data-action="export">Export CSV</button>`;
+    banner.innerHTML = `<span>All ${k.total} exceptions reviewed.</span><span class="banner-actions"><button type="button" class="btn ghost sm" data-action="show-closed">Batch summary</button><button type="button" class="btn ghost sm" data-action="export">Export CSV</button></span>`;
     banner.classList.remove('hidden');
   } else banner.classList.add('hidden');
 
@@ -505,6 +511,7 @@ function setDecision(status) {
   toast(`${id} ${STATUS_LABELS[status].toLowerCase()} · recorded only, nothing sent`);
   const next = nextPendingAfter(id);
   selectItem(next || id);
+  if (!next && computeKpis(state.items, decisions).pending === 0) showClosed(true);
 }
 
 function moveSelection(delta) {
@@ -553,6 +560,8 @@ async function runTriage() {
     state.items = data.items || [];
     state.insights = data.insights;
     state.triagedAt = new Date().toISOString();
+    state.isSample = Boolean(state.sampleText) && text.trim() === state.sampleText.trim();
+    showClosed(false);
     state.filters = { status: '', category: '', query: '', sort: 'priority' };
     $('#search').value = '';
     $('#filter-category').value = '';
@@ -653,7 +662,8 @@ async function loadMode() {
   try {
     const data = await (await fetch('/api/mode')).json();
     const ai = data.mode === 'ai';
-    $('.mode-text', el).textContent = ai ? data.label : 'Demo mode · rules engine';
+    state.mode = data;
+    $('.mode-text', el).textContent = ai ? data.label : data.pasteMock ? 'Demo mode · rules · paste box: mock AI' : 'Demo mode · rules engine';
     el.title = ai
       ? 'A model triages each item; batch checks and rules fallback still apply.'
       : 'No API key configured. Deterministic rules triage every item.';
@@ -662,6 +672,241 @@ async function loadMode() {
     $('.mode-text', el).textContent = 'Server offline';
   }
 }
+
+/* ---------------- batch closed ---------------- */
+
+function dayLabel(isoDay) {
+  if (!isoDay) return '';
+  const [y, m, d] = isoDay.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function minutesBetween(a, b) {
+  const ms = new Date(b) - new Date(a);
+  return Number.isFinite(ms) && ms >= 0 ? Math.max(1, Math.round(ms / 60000)) : 0;
+}
+
+function receiptLine(label, value, cls = '') {
+  return `<div class="r-line ${cls}"><span class="r-label">${label}</span><span class="r-dots" aria-hidden="true"></span><span class="r-value">${value}</span></div>`;
+}
+
+function renderClosed() {
+  const s = computeClosingSummary(state.items, decisions);
+  const el = $('#closed-view');
+  const closedAt = s.lastAt ? new Date(s.lastAt) : new Date();
+  const stampDate = closedAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+  const startAt = state.triagedAt || s.firstAt;
+  const mins = startAt && s.lastAt ? minutesBetween(startAt, s.lastAt) : 0;
+  const caughtSub = s.caught
+    .map((c) => {
+      const why = c.kind === 'refund_after_failed' ? 'payment never captured' : `second report of ${c.ids.find((x) => x !== c.id) || 'a duplicate'}`;
+      return `<div class="r-sub">${esc(c.id)} · ${formatMoney(c.amount)} · ${esc(why)}</div>`;
+    })
+    .join('');
+  const dlSub = s.deadlines
+    .map((d) => `<div class="r-sub">${esc(d.id)} · due ${esc(dayLabel(d.dueDate))} · ${d.decidedDay ? `${esc(STATUS_LABELS[d.status].toLowerCase())} ${esc(dayLabel(d.decidedDay))}` : 'not decided'}${d.met ? ' · met' : d.decidedDay ? ' · late' : ''}</div>`)
+    .join('');
+  const label = state.isSample
+    ? 'Sample data · 12 fictional cases · numbers computed from your decisions in this session'
+    : 'Computed from this batch and your decisions in this browser session';
+  el.innerHTML = `
+    <div class="closed-wrap">
+      <div class="receipt" role="group" aria-labelledby="closed-title">
+        <div class="stamp" aria-hidden="true">
+          <svg viewBox="0 0 220 120" width="168" height="92">
+            <defs><filter id="ink"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.25" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter></defs>
+            <g filter="url(#ink)" fill="none" stroke="currentColor">
+              <rect x="6" y="6" width="208" height="108" rx="12" stroke-width="5"/>
+              <rect x="15" y="15" width="190" height="90" rx="7" stroke-width="1.6"/>
+              <text x="110" y="64" text-anchor="middle" font-size="40" font-weight="800" letter-spacing="6" fill="currentColor" stroke="none" font-family="ui-monospace, Menlo, monospace">CLOSED</text>
+              <text x="110" y="90" text-anchor="middle" font-size="13" font-weight="700" letter-spacing="3" fill="currentColor" stroke="none" font-family="ui-monospace, Menlo, monospace">${esc(stampDate)}</text>
+            </g>
+          </svg>
+        </div>
+        <div class="r-head">
+          <div class="r-brand">Exception Desk</div>
+          <h2 id="closed-title">Batch closed</h2>
+          <div class="r-meta">${s.total} exceptions${startAt ? ` · triaged ${esc(timeShort(startAt))}` : ''}</div>${s.lastAt ? `<div class="r-meta">last decision ${esc(timeShort(s.lastAt))}${mins ? ` · ${mins} min on desk` : ''}</div>` : ''}
+        </div>
+        <div class="r-rule"></div>
+        ${receiptLine('Decisions made', `${s.decided}`)}
+        <div class="r-sub">${s.approved} approved · ${s.escalated} escalated · ${s.rejected} rejected</div>
+        ${receiptLine('Wrong refunds caught', formatMoney(s.caughtAmount, { blankZero: false }), 'good')}
+        ${caughtSub || '<div class="r-sub">None in this batch</div>'}
+        ${receiptLine('Deadlines met', s.deadlines.length ? `${s.deadlinesMet} of ${s.deadlines.length}` : '—')}
+        ${dlSub || '<div class="r-sub">No response deadlines in this batch</div>'}
+        ${receiptLine('Refunds to issue', formatMoney(s.approvedRefunds, { blankZero: false }))}
+        <div class="r-sub">approved by you, to issue in your processor</div>
+        <div class="r-rule"></div>
+        <p class="r-foot">Records only. Nothing was sent and no money moved.</p>
+        <p class="r-label-note">${esc(label)}</p>
+      </div>
+      <div class="closed-actions">
+        <button type="button" class="btn primary" data-action="export">Export decisions (CSV)</button>
+        <button type="button" class="btn ghost" data-action="hide-closed">Back to queue</button>
+        <button type="button" class="btn ghost" data-action="new-batch">New batch</button>
+      </div>
+    </div>`;
+}
+
+function showClosed(on) {
+  state.showClosed = on;
+  if (on) renderClosed();
+  $('#closed-view').classList.toggle('hidden', !on);
+  $('#workspace').classList.toggle('hidden', on);
+  $('#checks').classList.toggle('closed-mode', on);
+}
+
+/* ---------------- paste a new one ---------------- */
+
+let pasteSamples = null;
+
+function pasteEngineHint() {
+  const m = state.mode;
+  if (m?.mode === 'ai') return `${m.label} reads it · quotes checked against your paste`;
+  if (m?.pasteMock) return 'Mock AI: canned reply, no API call · quotes checked against your paste';
+  return 'Rules engine (no API key) · add a key for AI reading';
+}
+
+async function openPaste() {
+  $('#paste-engine').textContent = pasteEngineHint();
+  $('#paste-dialog').showModal();
+  $('#paste-text').focus();
+  if (!pasteSamples) {
+    try {
+      pasteSamples = (await (await fetch('/api/paste-samples')).json()).samples || {};
+    } catch {
+      pasteSamples = {};
+    }
+  }
+}
+
+const FACT_LABELS = [
+  ['customer', 'Customer'],
+  ['email', 'Email'],
+  ['amount', 'Amount'],
+  ['ref', 'Order / ref'],
+  ['whatHappened', 'What happened'],
+  ['wants', 'What they want'],
+];
+
+const SUPPORT_LABELS = { customer: 'customer', email: 'email', amount: 'amount', ref: 'ref', whatHappened: 'what happened', wants: 'what they want', link: 'link' };
+const supLabel = (k) => SUPPORT_LABELS[k] || k;
+
+function renderPasteResult(r) {
+  const el = $('#paste-result');
+  const engine = r.source === 'ai' ? esc(r.engine) : r.source === 'mock-ai' ? 'Mock AI · canned reply' : r.source === 'rules-fallback' ? 'Rules fallback' : 'Rules engine';
+  const lang = r.language && r.language !== 'en' ? `<span class="tag">Language: ${esc(r.language.toUpperCase())}</span>` : '';
+  const facts = FACT_LABELS.filter(([k]) => r.facts[k] !== undefined && r.facts[k] !== '')
+    .map(([k, label]) => {
+      const v = k === 'amount' ? formatMoney(r.facts[k]) : r.facts[k];
+      const sup = r.support?.[k];
+      const badge = sup === 'in source' ? '<span class="vbadge" title="Found in the pasted message">✓ in source</span>' : sup === 'summary' ? '<span class="vbadge summary" title="Written by the model in English; check the quotes">summary</span>' : '';
+      return `<div class="fact ${k === 'whatHappened' || k === 'wants' ? 'wide' : ''}"><dt>${label} ${badge}</dt><dd>${esc(v)}</dd></div>`;
+    })
+    .join('');
+
+  let linkHtml;
+  if (r.link) {
+    const it = state.items.find((x) => x.id === r.link.id);
+    const verdict = it ? it.batchCheck?.verdict || it.suggestedAction : '';
+    const others = r.link.otherIds?.length ? `<span class="muted small">Also related: ${r.link.otherIds.map((x) => `<button type="button" class="link-btn" data-paste-goto="${esc(x)}">${esc(x)}</button>`).join(', ')}</span>` : '';
+    linkHtml = `<div class="pr-link">
+      <div class="pr-link-top"><span class="pr-kicker">Belongs to</span><button type="button" class="link-btn strong" data-paste-goto="${esc(r.link.id)}">${esc(r.link.id)}</button><span class="pr-link-subj">${esc(it?.displaySubject || '')}</span></div>
+      <div class="pr-reasons">${r.link.reasons.map((x) => `<span class="tag rel">${esc(x)}</span>`).join('')}${r.link.basis === 'ai+check' ? '<span class="tag">model link, confirmed by the check</span>' : ''}</div>
+      ${verdict ? `<div class="pr-verdict"><span class="muted small">Desk already says</span> ${esc(verdict)}</div>` : ''}
+      ${others}
+      <div class="pr-link-actions"><button type="button" class="btn primary sm" data-paste-goto="${esc(r.link.id)}">Open ${esc(r.link.id)}</button><button type="button" class="btn ghost sm" data-paste-note="${esc(r.link.id)}">Add to ${esc(r.link.id)} note</button></div>
+    </div>`;
+  } else {
+    linkHtml = `<div class="pr-link none"><div class="pr-link-top"><span class="pr-kicker">No matching case in this batch</span></div><span class="muted small">Nothing in the queue shares its reference, or its email and amount. Treat it as a new case.</span></div>`;
+  }
+  const linkNote = r.linkNote ? `<div class="pr-drop-note">${esc(r.linkNote)}</div>` : '';
+
+  const quotes = r.quotes.length
+    ? r.quotes.map((q) => `<li><span class="vbadge">✓ Verified in source</span><q>${esc(q.text)}</q>${q.supports ? `<span class="q-sup">${esc(supLabel(q.supports))}</span>` : ''}</li>`).join('')
+    : '<li class="muted small">No quotes.</li>';
+  const droppedN = r.dropped.length + (r.droppedFacts?.length || 0);
+  const dropped = droppedN
+    ? `<div class="pr-section dropped"><h3>Dropped · ${droppedN} not found in your paste</h3><ul class="pr-quotes">${r.dropped
+        .map((d) => `<li><span class="vbadge drop">✕ Not in source</span><q><s>${esc(d.text)}</s></q>${d.supports ? `<span class="q-sup">${esc(supLabel(d.supports))}</span>` : ''}</li>`)
+        .join('')}${(r.droppedFacts || []).map((d) => `<li><span class="vbadge drop">✕ Not in source</span><span><s>${esc(supLabel(d.field))}: ${esc(String(d.value))}</s></span></li>`).join('')}</ul></div>`
+    : '';
+  const fallback = r.fallbackReason ? `<div class="pr-drop-note">${esc(r.fallbackReason)}</div>` : '';
+
+  el.innerHTML = `
+    <div class="pr-head"><span class="pill pill-mode ${r.source === 'ai' ? 'ai' : ''}"><span class="dot"></span>${engine}</span>${lang}</div>
+    ${fallback}
+    ${linkHtml}${linkNote}
+    <div class="pr-section"><h3>Facts</h3><dl class="facts">${facts || '<div class="facts-empty">No facts found.</div>'}</dl></div>
+    <div class="pr-section"><h3>Evidence · ${r.quotes.length} verified in source</h3><ul class="pr-quotes">${quotes}</ul></div>
+    ${dropped}`;
+  state.lastPaste = r;
+}
+
+async function runPasteExtract() {
+  const text = $('#paste-text').value;
+  if (!text.trim()) {
+    toast('Paste a message first', true);
+    $('#paste-text').focus();
+    return;
+  }
+  const btn = $('#paste-run');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  try {
+    const res = await fetch('/api/paste', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, cases: state.items.map((i) => ({ id: i.id, rawText: i.rawText, category: i.category })) }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      $('#paste-result').innerHTML = `<div class="alert error"><div class="alert-body"><strong>Couldn't read this message</strong><span>${esc(data.error || `The server answered ${res.status}.`)}</span></div></div>`;
+      return;
+    }
+    renderPasteResult(data);
+  } catch {
+    $('#paste-result').innerHTML = '<div class="alert error"><div class="alert-body"><strong>Server not reachable</strong><span>Check that npm start is still running, then try again.</span></div></div>';
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+}
+
+$('#paste-open').addEventListener('click', openPaste);
+$('#paste-close').addEventListener('click', () => $('#paste-dialog').close());
+$('#paste-run').addEventListener('click', runPasteExtract);
+$('#paste-text').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) runPasteExtract();
+});
+$('#paste-dialog').addEventListener('click', (e) => {
+  const sample = e.target.closest('[data-paste-sample]');
+  if (sample) {
+    $('#paste-text').value = pasteSamples?.[sample.dataset.pasteSample] || '';
+    $('#paste-text').focus();
+    return;
+  }
+  const go = e.target.closest('[data-paste-goto]');
+  if (go) {
+    $('#paste-dialog').close();
+    showClosed(false);
+    state.filters.status = '';
+    selectItem(go.dataset.pasteGoto);
+    return;
+  }
+  const note = e.target.closest('[data-paste-note]');
+  if (note && state.lastPaste) {
+    const id = note.dataset.pasteNote;
+    const f = state.lastPaste.facts;
+    const line = `Follow-up message pasted ${new Date().toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}: ${[f.whatHappened, f.wants && `Wants: ${f.wants}`].filter(Boolean).join('. ')}.`;
+    const d = decisionFor(decisions, id);
+    decisions[id] = { ...d, status: d.status, note: d.note ? `${d.note}\n${line}` : line };
+    saveDecisions();
+    if (state.selectedId === id) renderDetail();
+    toast(`Added to ${id} note`);
+  }
+});
 
 /* ---------------- events ---------------- */
 
@@ -743,6 +988,9 @@ $('#review-view').addEventListener('click', (e) => {
     $('#filter-category').value = '';
     renderQueue();
   } else if (t.dataset.action === 'export') openExport();
+  else if (t.dataset.action === 'show-closed') showClosed(true);
+  else if (t.dataset.action === 'hide-closed') showClosed(false);
+  else if (t.dataset.action === 'new-batch') $('#new-batch').click();
 });
 
 const detail = $('#detail');
@@ -781,13 +1029,13 @@ $('#export-download').addEventListener('click', downloadCsv);
 document.querySelectorAll('input[name="scope"]').forEach((r) => r.addEventListener('change', renderExportPreview));
 
 document.addEventListener('keydown', (e) => {
-  if ($('#export-dialog').open) return;
+  if ($('#export-dialog').open || $('#paste-dialog').open) return;
   const tag = e.target.tagName;
   if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') {
     if (e.key === 'Escape') e.target.blur();
     return;
   }
-  if ($('#review-view').classList.contains('hidden') || !state.items.length) return;
+  if ($('#review-view').classList.contains('hidden') || !state.items.length || state.showClosed) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key.toLowerCase();
   const map = {
@@ -839,6 +1087,7 @@ $('#clear-desk').addEventListener('click', () => {
   localStorage.removeItem(SESSION_KEY);
   state = { ...state, items: [], triageId: null, insights: null, selectedId: null };
   decisions = {};
+  showClosed(false);
   $('#batch-input').value = '';
   updateInputStats();
   showView('intake');
@@ -850,6 +1099,7 @@ updateInputStats();
 if (restoreSession()) {
   showView('review');
   selectItem(state.selectedId);
+  if (computeKpis(state.items, decisions).pending === 0) showClosed(true);
 } else {
   showView('intake');
 }

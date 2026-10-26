@@ -188,3 +188,53 @@ export function exportFilename(date = new Date()) {
   const pad = (n) => String(n).padStart(2, '0');
   return `exception-desk-${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}.csv`;
 }
+
+const CAUGHT_KINDS = new Set(['refund_after_failed', 'duplicate_secondary']);
+
+function localDay(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Numbers for the "Batch closed" receipt, computed only from the items and this session's decisions.
+ * Wrong refunds caught: batch-check items whose "no refund" suggestion the reviewer approved or escalated
+ * (a rejected suggestion is not counted). Deadlines met: items with a due date decided on or before it.
+ */
+export function computeClosingSummary(items, decisions) {
+  const k = computeKpis(items, decisions);
+  const caught = [];
+  const deadlines = [];
+  let firstAt = '';
+  let lastAt = '';
+  for (const item of items) {
+    const d = decisionFor(decisions, item.id);
+    if (d.updatedAt) {
+      if (!firstAt || d.updatedAt < firstAt) firstAt = d.updatedAt;
+      if (!lastAt || d.updatedAt > lastAt) lastAt = d.updatedAt;
+    }
+    if (item.batchCheck && CAUGHT_KINDS.has(item.batchCheck.kind) && (d.status === 'approved' || d.status === 'escalated')) {
+      caught.push({ id: item.id, amount: Number(item.displayAmount) || 0, kind: item.batchCheck.kind, ids: item.batchCheck.ids || [] });
+    }
+    if (item.dueDate) {
+      const decidedDay = d.status !== 'pending' && d.updatedAt ? localDay(d.updatedAt) : '';
+      deadlines.push({ id: item.id, dueDate: item.dueDate, status: d.status, decidedDay, met: Boolean(decidedDay) && decidedDay <= item.dueDate });
+    }
+  }
+  return {
+    total: k.total,
+    decided: k.reviewed,
+    approved: k.approved,
+    escalated: k.escalated,
+    rejected: k.rejected,
+    closed: k.total > 0 && k.pending === 0,
+    approvedRefunds: k.approvedRefunds,
+    caught,
+    caughtAmount: caught.reduce((s, c) => s + c.amount, 0),
+    deadlines,
+    deadlinesMet: deadlines.filter((x) => x.met).length,
+    firstAt,
+    lastAt,
+  };
+}
